@@ -1,0 +1,9 @@
+[project]
+scalaVersion = "2.13.2"
+
+[module.idrisparser.jvm]
+root = "."
+sources = ["src"]
+scalaDeps = [
+    ["com.lihaoyi", "fastparse", "2.2.2"]
+]
