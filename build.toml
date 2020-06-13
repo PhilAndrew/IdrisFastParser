@@ -1,9 +1,17 @@
 [project]
 scalaVersion = "2.13.2"
+testFrameworks = ["utest.runner.Framework"]
 
 [module.idrisparser.jvm]
 root = "."
 sources = ["src"]
 scalaDeps = [
-    ["com.lihaoyi", "fastparse", "2.2.2"]
+    ["com.lihaoyi", "fastparse", "2.2.2"],
+    ["com.lihaoyi", "pprint", "0.5.6"]
 ]
+
+[module.idrisparser.test.jvm]
+sources = ["test"]
+scalaDeps = [["com.lihaoyi", "utest", "0.7.4"]]
+
+

@@ -10,7 +10,7 @@ object Grammar {
     def name: String
   }*/
   case class Identifier(name: String)
-  case class ArrayIdentifier(name: String)
+  case class ArrayIdentifier(name: String, isEmpty: Boolean)
   case class MethodCall(method: Identifier, parameter: Seq[Product])
   case class MethodDefinition(name: String, rest: Seq[MethodDefinitionParameter])
   case class MethodDefinitionParameter(firstParam: Identifier, rest: Seq[Identifier])
@@ -19,6 +19,7 @@ object Grammar {
   case class Method(methodDefinition: MethodDefinition, methodLine: MethodLine)
   case class MethodImplWhere(methodDefinition: MethodDefinition, patterns: Seq[PatternMatch])
   case class PatternMatch(first: Identifier, rest: Seq[Product], methodCall: MethodCall)
+  case class Extraction(first: Identifier, second: Identifier)
 
   def method[_: P] = P ( optSpace ~ methodDecl ~ optSpace ~ newLine ~ optSpace ~ methodImpl ~ optSpace ~ newLine ~ End)
     .map(f => Method(f._1, f._2))
@@ -57,12 +58,16 @@ object Grammar {
 
   def myMethodImpl[_: P] = methodImpl
 
+  def isEmptyArray(s: String) = {
+    (s.filterNot(_ == ' ') == "[]")
+  }
+
   // Calling a method
   def methodCall[_: P] = P ( methodCallIdentifiers ).map(f => MethodCall(f._1, {
     for (n <- f._2.toList) yield {
       n match {
         case Identifier(s) => Identifier(s)
-        case ArrayIdentifier(s) => Identifier(s)
+        case ArrayIdentifier(s, isEmpty) => ArrayIdentifier(s, isEmptyArray(s))
         case _ => n
       }
     }
@@ -73,6 +78,7 @@ object Grammar {
   def methodCallParameter[_: P] = P(!P("where") ~ P(emptyArray | bracketedMethodCallParameter | Lexical.identifier))
 
   def bracketedMethodCallParameter[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ optSpace ~ ")")
+    .map(f => Extraction(f._1, f._2))
 
   def patternMatch[_: P] = P(Lexical.identifier ~ patternMatchIdentifiers ~ optSpace ~ "=" ~ optSpace ~ methodCall).map(f => {
     PatternMatch(f._1, f._2, f._3)
@@ -82,6 +88,7 @@ object Grammar {
 
   def arrayPatternMatch[_: P] = emptyArray
   def listPatternMatch[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ ")")
+    .map(f => Extraction(f._1, f._2))
 
   def identifiers[_: P] = P(Lexical.identifier ~ P(space ~ Lexical.identifier).rep(0))
 
@@ -101,7 +108,7 @@ object Grammar {
 
 
   // Matching an empty array such as [] or [ ]
-  def emptyArray[_: P] = P ( "[" ~ optSpace ~ "]" ).map(f => ArrayIdentifier("[]"))
+  def emptyArray[_: P] = P ( "[" ~ optSpace ~ "]" ).map(f => ArrayIdentifier("[]", true))
 
   // Documentation
 

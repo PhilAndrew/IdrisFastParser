@@ -41,13 +41,15 @@ object TestIdris extends App {
                 |reverse xs = revAcc [] xs where
                 |  revAcc : List a -> List a -> List a
                 |  revAcc acc [] = revAcc (x :: acc) xs
-                |  revAcc acc (x :: xs) = revAcc acc xs
+                |  revAcc acc (x :: xs) = revAcc (x :: acc) xs
                 |
                 |""".stripMargin
-    // revAcc (x :: acc) xs
+//   revAcc acc [] = revAcc (x :: acc) xs
     val result = parse(str, Grammar.method(_))
     println(str)
     pprint.pprintln(result)
+
+    println(TypeScript.toTypescriptAST(result));
   }
   testAll
 
