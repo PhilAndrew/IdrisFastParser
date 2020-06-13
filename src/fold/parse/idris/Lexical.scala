@@ -28,8 +28,8 @@ object Lexical {
     Set ("%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "!",
     "&", "**", ".."))
 
-  def identifier[_: P]: P[NotUsedYetAst.identifier] =
-    P( (letter|"_") ~ (letter | digit | "_").rep ).!.filter(!(keywords.union(constants)).contains(_)).map(NotUsedYetAst.identifier)
+  def identifier[_: P]: P[Grammar.Identifier] =
+    P( (letter|"_") ~ (letter | digit | "_").rep ).!.filter(!(keywords.union(constants)).contains(_)).map(Grammar.Identifier)
   def letter[_: P]     = P( lowercase | uppercase )
   def lowercase[_: P]  = P( CharIn("a-z") )
   def uppercase[_: P]  = P( CharIn("A-Z") )

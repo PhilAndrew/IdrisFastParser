@@ -26,12 +26,40 @@ object TestIdris extends App {
   }
   testImport
 
+  // Part of
+  // reverse xs = revAcc [] xs where
   def testMethodCall = {
     val str = "revAcc [] xs where"
     val result = parse(str, Grammar.methodCall(_))
     println(result)
   }
   testMethodCall
+
+  println()
+  def testAll = {
+    val str = """reverse : List a -> List a
+                |reverse xs = revAcc [] xs where
+                |  revAcc : List a -> List a -> List a
+                |  revAcc acc [] = revAcc (x :: acc) xs
+                |  revAcc acc (x :: xs) = revAcc acc xs
+                |
+                |""".stripMargin
+    // revAcc (x :: acc) xs
+    val result = parse(str, Grammar.method(_))
+    println(str)
+    pprint.pprintln(result)
+  }
+  testAll
+
+  /*
+reverse : List a -> List a
+reverse xs = revAcc [] xs where
+  revAcc : List a -> List a -> List a
+  revAcc acc [] = acc
+  revAcc acc (x :: xs) = revAcc (x :: acc) xs
+   */
+
+
 
   /*
   def testIdrisFile(fileName: String) = {
