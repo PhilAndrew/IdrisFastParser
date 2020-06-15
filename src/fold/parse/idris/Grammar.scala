@@ -1,9 +1,10 @@
 package fold.parse.idris
 
 import fastparse.NoWhitespace._
-import fastparse.P
+import fastparse.{P, Parsed}
 
 object Grammar {
+
   import fastparse._
 
   /*trait Identifier {
@@ -11,7 +12,7 @@ object Grammar {
   }*/
   case class Identifier(name: String)
   case class ArrayIdentifier(name: String, isEmpty: Boolean)
-  case class MethodCall(method: Identifier, parameter: Seq[Product])
+  case class MethodCall(method: Identifier, parameter: Seq[Product], isReferenceNotMethodCall: Boolean = false)
   case class MethodDefinition(name: String, rest: Seq[MethodDefinitionParameter])
   case class MethodDefinitionParameter(firstParam: Identifier, rest: Seq[Identifier])
   case class MethodNameBindings(methodName: Identifier, rest: Seq[Identifier])
@@ -115,4 +116,25 @@ object Grammar {
   def SingleLineComment_t[_: P] = P( "--" ~ CharsWhile(_ != '\n', 0) )
   def DocCommentLine[_: P] = P ( "|||" ~ CharsWhile(_ != '\n', 0) )
   def ArgCommentLine[_: P] = P ( "|||" ~ optSpace ~ "@" ~ CharsWhile(_ != '\n', 0) )
+
+
+
+  def postProcessParse(result: Parsed[Method]): Parsed[Method] = {
+    import com.softwaremill.quicklens._
+    result match {
+      case Parsed.Success(value, index) => {
+        val patterns = value.methodLine.methodImplWhere.patterns
+        val newPatterns = for (p <- patterns) yield {
+          // @todo This is a bad heuristic, we are attempting to identify if this is a method call or
+          // @todo something else, in this positive case we assume something else
+          if (p.methodCall.parameter.isEmpty) {
+            p.modify(_.methodCall.isReferenceNotMethodCall).setTo(true)
+          } else p
+        }
+        Parsed.Success(value.modify(_.methodLine.methodImplWhere.patterns).setTo(newPatterns), index)
+      }
+      case _ => result
+    }
+  }
+
 }

@@ -2,6 +2,8 @@ package fold.parse.idris
 
 import java.nio.file.{Files, Path}
 
+import fold.parse.idris.TypeScript.CodeGenerationPreferences
+
 object TestIdris extends App {
   import fastparse._
 
@@ -40,7 +42,7 @@ object TestIdris extends App {
     val str = """reverse : List a -> List a
                 |reverse xs = revAcc [] xs where
                 |  revAcc : List a -> List a -> List a
-                |  revAcc acc [] = revAcc (x :: acc) xs
+                |  revAcc acc [] = acc
                 |  revAcc acc (x :: xs) = revAcc (x :: acc) xs
                 |
                 |""".stripMargin
@@ -49,7 +51,12 @@ object TestIdris extends App {
     println(str)
     pprint.pprintln(result)
 
-    println(TypeScript.toTypescriptAST(result));
+    val postProcess = Grammar.postProcessParse(result)
+
+    val code1 = CodeGenerationPreferences(usePreludeTsListForList = true, usePreludeTsVectorForList = false)
+    TypeScript.toTypescriptAST("generatedList.ts", postProcess, code1);
+    val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
+    TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
   testAll
 
