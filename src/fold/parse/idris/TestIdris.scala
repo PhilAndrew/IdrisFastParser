@@ -51,7 +51,7 @@ object TestIdris extends App {
     println(str)
     pprint.pprintln(result)
 
-    val postProcess = Grammar.postProcessParse(result)
+    val postProcess = PostProcess.postProcessParse(result)
 
     val code1 = CodeGenerationPreferences(usePreludeTsListForList = true, usePreludeTsVectorForList = false)
     TypeScript.toTypescriptAST("generatedList.ts", postProcess, code1);

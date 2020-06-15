@@ -117,24 +117,4 @@ object Grammar {
   def DocCommentLine[_: P] = P ( "|||" ~ CharsWhile(_ != '\n', 0) )
   def ArgCommentLine[_: P] = P ( "|||" ~ optSpace ~ "@" ~ CharsWhile(_ != '\n', 0) )
 
-
-
-  def postProcessParse(result: Parsed[Method]): Parsed[Method] = {
-    import com.softwaremill.quicklens._
-    result match {
-      case Parsed.Success(value, index) => {
-        val patterns = value.methodLine.methodImplWhere.patterns
-        val newPatterns = for (p <- patterns) yield {
-          // @todo This is a bad heuristic, we are attempting to identify if this is a method call or
-          // @todo something else, in this positive case we assume something else
-          if (p.methodCall.parameter.isEmpty) {
-            p.modify(_.methodCall.isReferenceNotMethodCall).setTo(true)
-          } else p
-        }
-        Parsed.Success(value.modify(_.methodLine.methodImplWhere.patterns).setTo(newPatterns), index)
-      }
-      case _ => result
-    }
-  }
-
 }
