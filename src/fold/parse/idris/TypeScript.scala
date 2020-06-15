@@ -106,11 +106,11 @@ object TypeScript {
   def emptyCodeLine() = CodeLine("")
 
   def buildPatternMatchCondition(codeEnvironment: CodeEnvironment, patternMatch: Grammar.PatternMatch): Seq[CodeLine] = {
-    val lines: Seq[Option[String]] = for (r <- patternMatch.rest) yield {
-      val i: Option[String] = r match {
+    val lines: Seq[Option[String]] = for (r <- patternMatch.rest.zipWithIndex) yield {
+      val i: Option[String] = r._1 match {
         case a: ArrayIdentifier => {
           if (a.isEmpty)
-            Some("(param1.isEmpty())")
+            Some(s"(param${r._2+1}.isEmpty())")
           else {
             // @todo This one in cases of non empty array
             None
