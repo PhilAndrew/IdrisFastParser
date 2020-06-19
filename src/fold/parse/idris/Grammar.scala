@@ -12,27 +12,32 @@ object Grammar {
   }*/
   case class Identifier(name: String)
   case class ArrayIdentifier(name: String, isEmpty: Boolean)
-  case class MethodCall(method: Identifier, parameter: Seq[Product], isReferenceNotMethodCall: Boolean = false)
+  case class DataValue(name: Identifier)
   case class MethodDefinition(name: String, rest: Seq[MethodDefinitionParameter])
   case class MethodDefinitionParameter(firstParam: Identifier, rest: Seq[Identifier])
   case class MethodNameBindings(methodName: Identifier, rest: Seq[Identifier])
-  case class MethodLine(left: MethodNameBindings, methodCall: MethodCall, methodImplWhere: MethodImplWhere)
-  case class Method(methodDefinition: MethodDefinition, methodLine: MethodLine)
+  case class MethodLine(left: MethodNameBindings, methodCall: MethodCall, methodImplWhere: Option[MethodImplWhere])
+  case class Method(methodDefinition: MethodDefinition, methodLine: Seq[MethodLine])
   case class MethodImplWhere(methodDefinition: MethodDefinition, patterns: Seq[PatternMatch])
-  case class PatternMatch(first: Identifier, rest: Seq[Product], methodCall: MethodCall)
-  case class Extraction(first: Identifier, second: Identifier)
 
-  def method[_: P] = P ( optSpace ~ methodDecl ~ optSpace ~ newLine ~ optSpace ~ methodImpl ~ optSpace ~ newLine ~ End)
-    .map(f => Method(f._1, f._2))
+  case class MethodCall(method: Identifier, parameter: Seq[Product], isReferenceNotMethodCall: Boolean = false, isDataResultNotMethodCall: Boolean = false)
+  case class PatternMatch(first: Identifier, rest: Seq[Product], methodCall: MethodCall)
+
+  case class Extraction(first: Identifier, second: Identifier)
+  case class Bracketed(first: Identifier, second: Seq[Identifier])
+
+  def consumeEmptyLines[_: P] = P(optSpace ~ newLine).rep(0)
+
+  def method[_: P] = P ( optSpace ~ methodDecl ~ optSpace ~ P(newLine ~ optSpace ~ methodImpl ~ optSpace).rep(0) ~ consumeEmptyLines ~ End)
+    .map(f => Method(f._1, f._2)).log
 
   def newLine[_: P] = P("\n")
-
-  def optionalParameter[_: P] = P ( optSpace ~ "->" ~ optSpace ~ methodDeclParameter )
 
   // Method definition
   def methodDecl[_: P] = P ( identifier_t ~ optSpace ~ ":" ~ optSpace ~ methodDeclParameters)
     .map(f => MethodDefinition(f._1.name,
       f._2._1 +: f._2._2))
+  def optionalParameter[_: P] = P ( optSpace ~ "->" ~ optSpace ~ methodDeclParameter )
   def methodDeclParameters[_ : P] = P ( methodDeclParameter ~ optionalParameter.rep )
   def methodDeclParameter[_: P] = P(option1) // | option2 | option3)
   def option1[_: P] = P(identifier_t ~ P(space ~ identifier_t).rep(0)).map(
@@ -47,9 +52,16 @@ object Grammar {
   //    revAcc : List a -> List a -> List a
   //    revAcc acc [] = acc
   //    revAcc acc (x :: xs) = revAcc (x :: acc) xs
-  def methodImpl[_: P] = P ( identifiers.map(f => MethodNameBindings(f._1, f._2)) ~ optSpace ~ "=" ~ optSpace ~ methodCall ~ space ~
-    methodImplWhere )
-    .map(f => MethodLine(f._1, f._2, f._3))
+  def methodImpl[_: P] = P ( methodImplLeft.map((f) => {
+    if ((f._1.isInstanceOf[Identifier]) && (f._2.forall(_.isInstanceOf[Identifier]))) {
+      MethodNameBindings(f._1.asInstanceOf[Identifier], f._2.asInstanceOf[Seq[Identifier]])
+    } else MethodNameBindings(f._1.asInstanceOf[Identifier], Seq.empty)
+  }) ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide ~
+    P(&(space ~ "where") ~ space ~ methodImplWhere).? )
+    .map(f => MethodLine(f._1, f._2, f._3)).log
+
+  def methodImplLeft[_: P] = P(paramLeft ~ P(space ~ paramLeft).rep(0))
+  def paramLeft[_: P] = P(bracketPatternMatch | Lexical.identifier)
 
   def methodImplWhere[_: P] = P( &("where") ~ "where" ~ optSpace ~ newLine ~ optSpace ~ methodDecl ~ optSpace ~ newLine ~ multiplePatternMatches).map(f => {
     MethodImplWhere(f._1, f._2)
@@ -81,17 +93,29 @@ object Grammar {
   def bracketedMethodCallParameter[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ optSpace ~ ")")
     .map(f => Extraction(f._1, f._2))
 
-  def patternMatch[_: P] = P(Lexical.identifier ~ patternMatchIdentifiers ~ optSpace ~ "=" ~ optSpace ~ methodCall).map(f => {
-    PatternMatch(f._1, f._2, f._3)
+  /*
+  methodCall
+   */
+
+  def dataValue[_: P] = P(&(Lexical.uppercase) ~ Lexical.identifier ~ P(&(space ~ Lexical.uppercase) ~ space ~ Lexical.identifier).rep(0)).map(f => {
+    MethodCall(f._1, f._2, isDataResultNotMethodCall = true)
   })
+  def patternMatchRightSide[_: P] = P(dataValue | methodCall)
+
+  def patternMatch[_: P] = P(Lexical.identifier ~ patternMatchIdentifiers ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide).map(f => {
+    PatternMatch(f._1, f._2, f._3)
+  }).log
   def patternMatchIdentifiers[_: P] = patternMatchIdentifier.rep
-  def patternMatchIdentifier[_: P] = P(space ~ !("=") ~ P(Lexical.identifier | arrayPatternMatch | listPatternMatch))
+  def patternMatchIdentifier[_: P] = P(space ~ !("=") ~ P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch))
 
   def arrayPatternMatch[_: P] = emptyArray
   def listPatternMatch[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ ")")
     .map(f => Extraction(f._1, f._2))
 
-  def identifiers[_: P] = P(Lexical.identifier ~ P(space ~ Lexical.identifier).rep(0))
+  def bracketPatternMatch[_: P] = P(&("(") ~ "(" ~ optSpace ~ Lexical.identifier ~ P(space ~ Lexical.identifier).rep(0) ~ optSpace ~")")
+    .map(f => Bracketed(f._1, f._2)).log
+
+  def identifiers[_: P] = P(Lexical.identifier ~ P(space ~ Lexical.identifier).rep(0)).log
 
 
 

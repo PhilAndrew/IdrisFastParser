@@ -1,0 +1,18 @@
+
+# Based on https://dgraph.io/slash-graphql
+
+type Product
+  product id: ID!
+  name: String @search(by: [term])
+  reviews: [Reviews] @has inverse(field:about)
+
+type Customer
+  user name: String! @id @search(by: [hash, regex])
+  reviews: [Reviews] @has inverse(field: by)
+
+type Review
+  id: ID!
+  about: Product!
+  by: Customer!
+  comment: String @search(by: [fulltext])
+  rating: Int @search

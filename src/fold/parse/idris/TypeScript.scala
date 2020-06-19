@@ -30,6 +30,7 @@ object TypeScript {
   } else t
 
   def functionTypeParameters(value: Grammar.Method) = {
+    if (value.methodDefinition.rest.head.rest.isEmpty) "" else
     s"${value.methodDefinition.rest.head.rest.head.name}"
   }
 
@@ -219,27 +220,28 @@ object TypeScript {
     deGrouped
   }
 
-  def methodDefinition(methodImplWhere: Grammar.MethodImplWhere, code: CodeGenerationPreferences, c: CodeEnvironment) = {
-    val last = methodImplWhere.methodDefinition.rest.last
-    val r = methodImplWhere.methodDefinition.rest.dropRight(1)
-    val paramTypes = for (p <- r) yield p.firstParam.name
-    val ft = "a"
-    val paramNames = paramTypes.zipWithIndex.map((t : (String, Int)) => s"param${t._2+1}")
-    val param = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${paramNames(t._2)}: ${basicTypeToTypescript(code, t._1, "a")}").mkString(", ")
+  def methodDefinition(methodImplWhere: Option[Grammar.MethodImplWhere], code: CodeGenerationPreferences, c: CodeEnvironment) = {
+    if (methodImplWhere.isDefined) {
+      val last = methodImplWhere.get.methodDefinition.rest.last
+      val r = methodImplWhere.get.methodDefinition.rest.dropRight(1)
+      val paramTypes = for (p <- r) yield p.firstParam.name
+      val ft = "a"
+      val paramNames = paramTypes.zipWithIndex.map((t: (String, Int)) => s"param${t._2 + 1}")
+      val param = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${paramNames(t._2)}: ${basicTypeToTypescript(code, t._1, "a")}").mkString(", ")
 
-    val methodBody: String = (for (p <- methodImplWhere.patterns) yield {
-      p.toString
-    }).mkString("\n")
+      val methodBody: String = (for (p <- methodImplWhere.get.patterns) yield {
+        p.toString
+      }).mkString("\n")
 
-    val what = methodImplWhere.patterns(1).rest.toString
+      val what = methodImplWhere.get.patterns(1).rest.toString
 
-    val what2 = codeLinesToString(2, patternMatchesToCode(c, methodImplWhere))
+      val what2 = codeLinesToString(2, patternMatchesToCode(c, methodImplWhere.get))
 
-    // @todo The function is parameterized by <${ft}> but I deleted that to make it work
-    s"""  function ${methodImplWhere.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.firstParam.name, ft)} {
-       |${what2}
-       |  }
-       |""".stripMargin
+      // @todo The function is parameterized by <${ft}> but I deleted that to make it work
+      s"""  function ${methodImplWhere.get.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.firstParam.name, ft)} {
+         |${what2}
+         |}""".stripMargin
+    } else ""
   }
 
   def docComments(code: CodeGenerationPreferences, params: Seq[(String, String)]): String = {
@@ -265,7 +267,7 @@ object TypeScript {
     idrisAst match {
       case Parsed.Success(value, index) => {
         val parameterTypes = for (p <- value.methodDefinition.rest) yield (p.firstParam.name)
-        val parameterNames = for (p <- value.methodLine.left.rest) yield (p.name)
+        val parameterNames = for (p <- value.methodLine.head.left.rest) yield (p.name)
 
         val codeEnvironment = CodeEnvironment(localVariablesFromMethodParameterScope = generateLocalVariables(value.methodDefinition.name, parameterNames, parameterTypes),
           generationPreferences = code)
@@ -289,8 +291,8 @@ object TypeScript {
             |
             |""".stripMargin
 
-        val methodImpl = methodCall(code, value.methodLine.methodCall)
-        val methodDef = methodDefinition(value.methodLine.methodImplWhere, code, codeEnvironment)
+        val methodImpl = methodCall(code, value.methodLine.head.methodCall)
+        val methodDef = methodDefinition(value.methodLine.head.methodImplWhere, code, codeEnvironment)
         val functionDoc = docComments(code, params)
 
         val function = s"""${functionDoc}
