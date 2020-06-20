@@ -7,6 +7,9 @@ import fold.parse.idris.Grammar.{ArrayIdentifier, Extraction, Identifier}
 
 object TypeScript {
 
+  case class Binding(localName: String, origionalName: String, typeOf: String)
+  case class ParameterBinding(bindings: Seq[Binding])
+
   case class CodeGenerationPreferences(usePreludeTs: Boolean = true,
                                        usePreludeTsVectorForList: Boolean = true,
                                        usePreludeTsListForList: Boolean = false,
@@ -25,13 +28,19 @@ object TypeScript {
   // Use linked list
   // https://github.com/immutable-js/immutable-js
 
-  def basicTypeToTypescript(code: CodeGenerationPreferences, t: String, ft: String): String = if (t == "List") {
-    s"${code.listType()}<${ft}>"
-  } else t
+  def basicTypeToTypescript(code: CodeGenerationPreferences, t: String, ft: String): String = {
+    t match {
+      case "List" => {
+        s"${code.listType()}<${ft}>"
+      }
+      case "Bool" => "boolean"
+      case _ => t
+    }
+  }
 
   def functionTypeParameters(value: Grammar.Method) = {
-    if (value.methodDefinition.rest.head.rest.isEmpty) "" else
-    s"${value.methodDefinition.rest.head.rest.head.name}"
+    if (value.methodDefinition.parameters.head.rest.isEmpty) "" else
+    s"${value.methodDefinition.parameters.head.rest.head.name}"
   }
 
   def emptyList(c: CodeGenerationPreferences) = if (c.usePreludeTs) {
@@ -222,8 +231,8 @@ object TypeScript {
 
   def methodDefinition(methodImplWhere: Option[Grammar.MethodImplWhere], code: CodeGenerationPreferences, c: CodeEnvironment) = {
     if (methodImplWhere.isDefined) {
-      val last = methodImplWhere.get.methodDefinition.rest.last
-      val r = methodImplWhere.get.methodDefinition.rest.dropRight(1)
+      val last = methodImplWhere.get.methodDefinition.parameters.last
+      val r = methodImplWhere.get.methodDefinition.parameters.dropRight(1)
       val paramTypes = for (p <- r) yield p.firstParam.name
       val ft = "a"
       val paramNames = paramTypes.zipWithIndex.map((t: (String, Int)) => s"param${t._2 + 1}")
@@ -263,50 +272,90 @@ object TypeScript {
     }
   }
 
+  def isDataType(name: String) = {
+    name.head.isUpper
+  }
+
+  //ParameterBinding
+  def parameterBinding(method: Grammar.Method, methodLine: Grammar.MethodLine) = {
+    val totalParameters = method.methodDefinition.parameters.size
+    val methodDef = method.methodDefinition.parameters
+    val methodLineParameters = methodLine.left.rest
+
+    for (p <- methodLineParameters) yield {
+      val dataType = isDataType(p.name)
+
+    }
+    println("hello")
+    null
+  }
+
   def toTypescriptAST(fileName: String, idrisAst: Parsed[Grammar.Method], code: CodeGenerationPreferences) = {
     idrisAst match {
       case Parsed.Success(value, index) => {
-        val parameterTypes = for (p <- value.methodDefinition.rest) yield (p.firstParam.name)
-        val parameterNames = for (p <- value.methodLine.head.left.rest) yield (p.name)
+        if (value!=null) {
+          for (m <- value.methodLine)
+            parameterBinding(value, m)
 
-        val codeEnvironment = CodeEnvironment(localVariablesFromMethodParameterScope = generateLocalVariables(value.methodDefinition.name, parameterNames, parameterTypes),
-          generationPreferences = code)
+          val parameterTypes = for (p <- value.methodDefinition.parameters) yield (p.firstParam.name)
 
-        val ft = functionTypeParameters(value)
+          val methodLines = value.methodLine.size
+          println(methodLines)
 
-        val params = parameterNames.zip(parameterTypes)
-        val test = for (p <- params) yield (p._1 + ": " + basicTypeToTypescript(code, p._2, ft))
+          // In the case of multiple method lines then the variable names maybe different so we need to use
+          // some common name
 
-        val header =
-          s"""// npm install --save prelude-ts
-            |import { Vector, LinkedList } from "prelude-ts";
-            |
-            |function head${code.listType()}<a>(param: ${code.listType()}<a>): a {
-            |  return param.head().getOrThrow()
-            |}
-            |
-            |function tail${code.listType()}<a>(param: ${code.listType()}<a>): ${code.listType()}<a> {
-            |  return param.tail().getOrElse(${emptyList(code)})
-            |}
-            |
-            |""".stripMargin
+          val parameterNames = for (p <- value.methodLine.head.left.rest) yield (p.name)
 
-        val methodImpl = methodCall(code, value.methodLine.head.methodCall)
-        val methodDef = methodDefinition(value.methodLine.head.methodImplWhere, code, codeEnvironment)
-        val functionDoc = docComments(code, params)
+          val parameterNamesFiltered: Seq[Option[String]] = parameterNames.map((f) => if (f.head.isUpper == false) Some(f) else None)
 
-        val function = s"""${functionDoc}
-                          |export function ${value.methodDefinition.name}<${ft}>(${test.mkString(", ")}): ${basicTypeToTypescript(code, parameterTypes.last, ft)}
-           |{
-           |${methodDef}
-           |${methodImpl}
-           |}""".stripMargin
+          val codeEnvironment = CodeEnvironment(localVariablesFromMethodParameterScope = generateLocalVariables(value.methodDefinition.name, parameterNames, parameterTypes),
+            generationPreferences = code)
 
-        val output = header + function
+          val ft = functionTypeParameters(value)
 
-        Files.writeString(Path.of("typescript/src/test/" + fileName), output)
+          val params = parameterNamesFiltered.zip(parameterTypes).map(f => {
+            if (f._1.isDefined) Some((f._1.get, f._2)) else None
+          }).flatten
 
-        output
+          val parametersStr = for (p <- params) yield (p._1 + ": " + basicTypeToTypescript(code, p._2, ft))
+
+          val header =
+            s"""// npm install --save prelude-ts
+              |import { Vector, LinkedList } from "prelude-ts";
+              |
+              |function head${code.listType()}<a>(param: ${code.listType()}<a>): a {
+              |  return param.head().getOrThrow()
+              |}
+              |
+              |function tail${code.listType()}<a>(param: ${code.listType()}<a>): ${code.listType()}<a> {
+              |  return param.tail().getOrElse(${emptyList(code)})
+              |}
+              |
+              |""".stripMargin
+
+          val methodImpl = methodCall(code, value.methodLine.head.methodCall)
+          val methodDef = methodDefinition(value.methodLine.head.methodImplWhere, code, codeEnvironment)
+          val functionDoc = docComments(code, params)
+
+          val parameterized = if (ft.trim.isEmpty) "" else s"<$ft>"
+
+          val function = s"""${functionDoc}
+                            |export function ${value.methodDefinition.name}${parameterized}(${parametersStr.mkString(", ")}): ${basicTypeToTypescript(code, parameterTypes.last, ft)}
+             |{
+             |${methodDef}
+             |${methodImpl}
+             |}""".stripMargin
+
+          val output = header + function
+
+          Files.writeString(Path.of("typescript/src/test/" + fileName), output)
+
+          output
+        } else {
+          Files.writeString(Path.of("typescript/src/test/" + fileName), "failure case")
+          ""
+        }
       }
 
 

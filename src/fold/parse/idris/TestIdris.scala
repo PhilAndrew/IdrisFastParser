@@ -12,21 +12,21 @@ object TestIdris extends App {
     val result = parse(str, Grammar.moduleHeader(_))
     println(result)
   }
-  testModule
+  //testModule
 
   def testMethod = {
     val str = "reverse : {List1 a} -> ( List2 b c) -> List3"
     val result = parse(str, Grammar.methodDecl(_))
     println(result)
   }
-  testMethod
+  //testMethod
 
   def testImport = {
     val str = "import identifier;"
     val result = parse(str, Grammar.importLine(_))
     println(result)
   }
-  testImport
+  //testImport
 
   // Part of
   // reverse xs = revAcc [] xs where
@@ -35,7 +35,7 @@ object TestIdris extends App {
     val result = parse(str, Grammar.methodCall(_))
     println(result)
   }
-  testMethodCall
+  //testMethodCall
 
   println()
   def testRevAcc = {
@@ -58,7 +58,7 @@ object TestIdris extends App {
     val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
     TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
-  testRevAcc
+  //testRevAcc
 
   println()
   def testIsSingleton = {
@@ -76,7 +76,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  testIsSingleton
+  //testIsSingleton
 
 
   println()

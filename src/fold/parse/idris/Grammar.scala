@@ -13,9 +13,11 @@ object Grammar {
   case class Identifier(name: String)
   case class ArrayIdentifier(name: String, isEmpty: Boolean)
   case class DataValue(name: Identifier)
-  case class MethodDefinition(name: String, rest: Seq[MethodDefinitionParameter])
+  case class MethodDefinition(name: String, parameters: Seq[MethodDefinitionParameter])
   case class MethodDefinitionParameter(firstParam: Identifier, rest: Seq[Identifier])
-  case class MethodNameBindings(methodName: Identifier, rest: Seq[Identifier])
+
+  case class MethodParameter(name: String, bracketedForm: Option[Bracketed] = None)
+  case class MethodNameBindings(methodName: Identifier, rest: Seq[MethodParameter])
   case class MethodLine(left: MethodNameBindings, methodCall: MethodCall, methodImplWhere: Option[MethodImplWhere])
   case class Method(methodDefinition: MethodDefinition, methodLine: Seq[MethodLine])
   case class MethodImplWhere(methodDefinition: MethodDefinition, patterns: Seq[PatternMatch])
@@ -53,9 +55,28 @@ object Grammar {
   //    revAcc acc [] = acc
   //    revAcc acc (x :: xs) = revAcc (x :: acc) xs
   def methodImpl[_: P] = P ( methodImplLeft.map((f) => {
+
+    /*def allAreIdentifiers(i: Seq[Product]): Boolean = i.forall(_.isInstanceOf[Identifier])
+    def it(product: Product) = {
+      product match {
+        case i: Identifier => ???
+        case b: Bracketed => ???
+      }
+    }*/
+
+
+
     if ((f._1.isInstanceOf[Identifier]) && (f._2.forall(_.isInstanceOf[Identifier]))) {
-      MethodNameBindings(f._1.asInstanceOf[Identifier], f._2.asInstanceOf[Seq[Identifier]])
-    } else MethodNameBindings(f._1.asInstanceOf[Identifier], Seq.empty)
+      MethodNameBindings(f._1.asInstanceOf[Identifier], f._2.asInstanceOf[Seq[Identifier]].map(m => MethodParameter(m.name)))
+    } else {
+      // @todo Wrong, incomplete
+      if (f._2.forall(_.isInstanceOf[Bracketed])) {
+        val b = f._2.asInstanceOf[Seq[Bracketed]]
+        MethodNameBindings(f._1.asInstanceOf[Identifier], b.map((m: Bracketed) => MethodParameter("noname",
+          bracketedForm = Some(Bracketed(Identifier("S"), Seq(Identifier("k")))))))
+      } else
+        MethodNameBindings(f._1.asInstanceOf[Identifier], Seq.empty)
+    }
   }) ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide ~
     P(&(space ~ "where") ~ space ~ methodImplWhere).? )
     .map(f => MethodLine(f._1, f._2, f._3)).log
