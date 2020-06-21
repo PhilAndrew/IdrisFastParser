@@ -7,7 +7,11 @@ import fold.parse.idris.Grammar.{ArrayIdentifier, Extraction, Identifier}
 
 object TypeScript {
 
-  case class Binding(localName: String, origionalName: Option[String], typeOf: String)
+  case class BracketedBinding(origional: Seq[String], // Assume ["S", "k"] which is (S k)
+                             name: String,            // Assume "k" as any place this name is found we are referring to this backeted binding
+                             substitution: String     // Assume "k-1" to substitute into this place
+                             )
+  case class Binding(localName: String, origionalName: Option[String], typeOf: String, bracketedBinding: Option[BracketedBinding]) // @todo bracketedBinding set to None
   case class ParameterBinding(bindings: Seq[Binding])
 
   case class CodeGenerationPreferences(usePreludeTs: Boolean = true,
@@ -288,7 +292,8 @@ object TypeScript {
     }
 
     val bindings = for (p <- parameterNames.zip(methodLineParameters).zip(methodDef)) yield {
-      Binding(p._1._1, if (p._1._2.name.isEmpty) None else if (isDataType(p._1._2.name.get)) None else Some(p._1._2.name.get), p._2.firstParam.name)
+      // @todo Bracketed binding
+      Binding(p._1._1, if (p._1._2.name.isEmpty) None else if (isDataType(p._1._2.name.get)) None else Some(p._1._2.name.get), p._2.firstParam.name, None)
     }
     ParameterBinding(bindings)
   }
