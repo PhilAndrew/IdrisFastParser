@@ -38,6 +38,7 @@ object TypeScript {
         s"${code.listType()}<${ft}>"
       }
       case "Bool" => "boolean"
+      case "Nat" => "number"
       case _ => t
     }
   }
@@ -240,7 +241,7 @@ object TypeScript {
       val paramTypes = for (p <- r) yield p.firstParam.name
       val ft = "a"
       val paramNames = paramTypes.zipWithIndex.map((t: (String, Int)) => s"param${t._2 + 1}")
-      val param = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${paramNames(t._2)}: ${basicTypeToTypescript(code, t._1, "a")}").mkString(", ")
+      val param = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${paramNames(t._2)}: ${basicTypeToTypescript(code, t._1, ft)}").mkString(", ")
 
       val methodBody: String = (for (p <- methodImplWhere.get.patterns) yield {
         p.toString
@@ -259,7 +260,7 @@ object TypeScript {
 
   def docComments(code: CodeGenerationPreferences, params: Seq[(String, String)]): String = {
     val codeLines = (for (p <- params.zipWithIndex) yield {
-      CodeLine(s"* @param ${p._1._1} ${code.listType()}<a> ?")
+      CodeLine(s"* @param ${p._1._1} ${basicTypeToTypescript(code, p._1._2, "a")} ?")
     }) :+ CodeLine(s"* @returns ?")
 
     val parameterJsDoc = codeLinesToString(0, codeLines)
@@ -302,8 +303,8 @@ object TypeScript {
     idrisAst match {
       case Parsed.Success(value, index) => {
         if (value!=null) {
-          for (m <- value.methodLine)
-            parameterBinding(value, m)
+          val methodLineParameterBindings = for (m <- value.methodLine)
+            yield parameterBinding(value, m)
 
           val parameterTypes = for (p <- value.methodDefinition.parameters) yield (p.firstParam.name)
 
@@ -313,7 +314,9 @@ object TypeScript {
           // In the case of multiple method lines then the variable names maybe different so we need to use
           // some common name
 
-          val parameterNames = for (p <- value.methodLine.head.left.rest) yield (p.name.getOrElse(""))
+          val parameterNames = methodLineParameterBindings.head.bindings.map(b => {
+            b.localName
+          }) //for (p <- value.methodLine.head.left.rest) yield (p.name.getOrElse(""))
 
           val parameterNamesFiltered: Seq[Option[String]] = parameterNames.map((f) => {
             if (f.size == 0) None else if (f.head.isUpper == false) Some(f) else None
