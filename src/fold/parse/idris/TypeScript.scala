@@ -7,7 +7,7 @@ import fold.parse.idris.Grammar.{ArrayIdentifier, Extraction, Identifier}
 
 object TypeScript {
 
-  case class Binding(localName: String, origionalName: String, typeOf: String)
+  case class Binding(localName: String, origionalName: Option[String], typeOf: String)
   case class ParameterBinding(bindings: Seq[Binding])
 
   case class CodeGenerationPreferences(usePreludeTs: Boolean = true,
@@ -277,17 +277,20 @@ object TypeScript {
   }
 
   //ParameterBinding
-  def parameterBinding(method: Grammar.Method, methodLine: Grammar.MethodLine) = {
+  def parameterBinding(method: Grammar.Method, methodLine: Grammar.MethodLine): ParameterBinding = {
     val totalParameters = method.methodDefinition.parameters.size
     val methodDef = method.methodDefinition.parameters
     val methodLineParameters = methodLine.left.rest
 
-    for (p <- methodLineParameters) yield {
-      val dataType = isDataType(p.name)
 
+    val parameterNames = for (p <- (0 until (totalParameters-1))) yield {
+      s"functionParameter${p+1}"
     }
-    println("hello")
-    null
+
+    val bindings = for (p <- parameterNames.zip(methodLineParameters).zip(methodDef)) yield {
+      Binding(p._1._1, if (p._1._2.name.isEmpty) None else if (isDataType(p._1._2.name.get)) None else Some(p._1._2.name.get), p._2.firstParam.name)
+    }
+    ParameterBinding(bindings)
   }
 
   def toTypescriptAST(fileName: String, idrisAst: Parsed[Grammar.Method], code: CodeGenerationPreferences) = {
@@ -305,9 +308,11 @@ object TypeScript {
           // In the case of multiple method lines then the variable names maybe different so we need to use
           // some common name
 
-          val parameterNames = for (p <- value.methodLine.head.left.rest) yield (p.name)
+          val parameterNames = for (p <- value.methodLine.head.left.rest) yield (p.name.getOrElse(""))
 
-          val parameterNamesFiltered: Seq[Option[String]] = parameterNames.map((f) => if (f.head.isUpper == false) Some(f) else None)
+          val parameterNamesFiltered: Seq[Option[String]] = parameterNames.map((f) => {
+            if (f.size == 0) None else if (f.head.isUpper == false) Some(f) else None
+          })
 
           val codeEnvironment = CodeEnvironment(localVariablesFromMethodParameterScope = generateLocalVariables(value.methodDefinition.name, parameterNames, parameterTypes),
             generationPreferences = code)

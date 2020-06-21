@@ -16,7 +16,7 @@ object Grammar {
   case class MethodDefinition(name: String, parameters: Seq[MethodDefinitionParameter])
   case class MethodDefinitionParameter(firstParam: Identifier, rest: Seq[Identifier])
 
-  case class MethodParameter(name: String, bracketedForm: Option[Bracketed] = None)
+  case class MethodParameter(name: Option[String], bracketedForm: Option[Bracketed] = None)
   case class MethodNameBindings(methodName: Identifier, rest: Seq[MethodParameter])
   case class MethodLine(left: MethodNameBindings, methodCall: MethodCall, methodImplWhere: Option[MethodImplWhere])
   case class Method(methodDefinition: MethodDefinition, methodLine: Seq[MethodLine])
@@ -67,12 +67,12 @@ object Grammar {
 
 
     if ((f._1.isInstanceOf[Identifier]) && (f._2.forall(_.isInstanceOf[Identifier]))) {
-      MethodNameBindings(f._1.asInstanceOf[Identifier], f._2.asInstanceOf[Seq[Identifier]].map(m => MethodParameter(m.name)))
+      MethodNameBindings(f._1.asInstanceOf[Identifier], f._2.asInstanceOf[Seq[Identifier]].map(m => MethodParameter(Some(m.name))))
     } else {
       // @todo Wrong, incomplete
       if (f._2.forall(_.isInstanceOf[Bracketed])) {
         val b = f._2.asInstanceOf[Seq[Bracketed]]
-        MethodNameBindings(f._1.asInstanceOf[Identifier], b.map((m: Bracketed) => MethodParameter("noname",
+        MethodNameBindings(f._1.asInstanceOf[Identifier], b.map((m: Bracketed) => MethodParameter(None,
           bracketedForm = Some(Bracketed(Identifier("S"), Seq(Identifier("k")))))))
       } else
         MethodNameBindings(f._1.asInstanceOf[Identifier], Seq.empty)
