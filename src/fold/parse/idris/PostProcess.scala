@@ -16,8 +16,8 @@ object PostProcess {
     import com.softwaremill.quicklens._
     result match {
       case Parsed.Success(value, index) => {
-        if (value.methodLine.head.methodImplWhere.isDefined) {
-          val patterns = value.methodLine.head.methodImplWhere.get.patterns
+        if (value.patternMatch.head.methodImplWhere.isDefined) {
+          val patterns = value.patternMatch.head.methodImplWhere.get.patternMatch
           val newPatterns = for (p <- patterns) yield {
             // @todo This is a bad heuristic, we are attempting to identify if this is a method call or
             // @todo something else, in this positive case we assume something else
@@ -25,7 +25,7 @@ object PostProcess {
               p.modify(_.methodCall.isReferenceNotMethodCall).setTo(true)
             } else p
           }
-          Parsed.Success(value.modify(_.methodLine.at(0).methodImplWhere.each.patterns).setTo(newPatterns), index)
+          Parsed.Success(value.modify(_.patternMatch.at(0).methodImplWhere.each.patternMatch).setTo(newPatterns), index)
         } else {
           Parsed.Success(value, index)
         }

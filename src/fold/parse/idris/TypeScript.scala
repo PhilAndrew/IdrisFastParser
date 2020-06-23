@@ -3,7 +3,7 @@ package fold.parse.idris
 import java.nio.file.{Files, Path}
 
 import fastparse.Parsed
-import fold.parse.idris.Grammar.{ArrayIdentifier, Extraction, Identifier}
+import fold.parse.idris.Grammar.{ArrayIdentifier, Extraction, Identifier, Method}
 
 object TypeScript {
 
@@ -85,8 +85,8 @@ object TypeScript {
       name
   }
 
-  def buildExtractor(codeEnvironment: CodeEnvironment, patternMatch: Grammar.PatternMatch): Seq[CodeLine] = {
-    (for (r <- patternMatch.rest.zipWithIndex) yield {
+  def buildExtractor(codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
+    (for (r <- patternMatch.methodImplWhere.get.patternMatch.zipWithIndex) yield {
       r._1 match {
         case e: Extraction => {
           Seq(CodeLine(s"const ${prefix(codeEnvironment, e.first.name)} = head${codeEnvironment.generationPreferences.listType()}(param${r._2+1})"),
@@ -96,7 +96,7 @@ object TypeScript {
           // What is current method name?
           // What is current index?
           // What is identifier name?
-          val currentMethodName = patternMatch.first.name // @todo not sure if this is true
+          val currentMethodName = patternMatch.left.methodName.name // @todo not sure if this is true
           val index = r._2
           val identifierName = i.name
 
@@ -120,8 +120,8 @@ object TypeScript {
 
   def emptyCodeLine() = CodeLine("")
 
-  def buildPatternMatchCondition(codeEnvironment: CodeEnvironment, patternMatch: Grammar.PatternMatch): Seq[CodeLine] = {
-    val lines: Seq[Option[String]] = for (r <- patternMatch.rest.zipWithIndex) yield {
+  def buildPatternMatchCondition(codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
+    val lines: Seq[Option[String]] = for (r <- patternMatch.methodImplWhere.get.patternMatch.zipWithIndex) yield {
       val i: Option[String] = r._1 match {
         case a: ArrayIdentifier => {
           if (a.isEmpty)
@@ -160,7 +160,7 @@ object TypeScript {
       "?notFoundIdentifier"
   }
 
-  def buildCode(codeEnvironment: CodeEnvironment, patternMatch: Grammar.PatternMatch): Seq[CodeLine] = {
+  def buildCode(codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
     if (patternMatch.methodCall.isReferenceNotMethodCall)
       Seq(CodeLine(s"return ${patternMatch.methodCall.method.name}"))
@@ -183,11 +183,11 @@ object TypeScript {
     }
   }
 
-  def updateCodeEnvironment(codeEnvironment: CodeEnvironment, patternMatch: Grammar.PatternMatch): CodeEnvironment = {
+  def updateCodeEnvironment(codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): CodeEnvironment = {
     // @todo Add the aliases
-    val methodName = patternMatch.first.name
+    val methodName = patternMatch.left.methodName.name
     // Add variables to the codeEnvironment
-    val add: Seq[LocalVariable] = (for (p <- patternMatch.rest.zipWithIndex) yield {
+    val add: Seq[LocalVariable] = (for (p <- patternMatch.methodImplWhere.get.patternMatch.zipWithIndex) yield {
       p._1 match {
         case i: Identifier => {
           Some(LocalVariable(methodName, i.name, "?unknownTypeOf", p._2, Some(s"param${p._2+1}"))) // @todo fix variable alias param
@@ -200,8 +200,57 @@ object TypeScript {
     codeEnvironment.copy(localVariablesFromMethodParameterScope = l)
   }
 
-  def patternMatchesToCode(codeEnvironment: CodeEnvironment, methodImplWhere: Grammar.MethodImplWhere): Seq[CodeLine] = {
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // @todo Merge the next two functions
+  def patternMatchesToCode(codeEnvironment: CodeEnvironment, methodImplWhere: Grammar.Method): Seq[CodeLine] = {
+
+    val codeLines: Seq[Seq[CodeLine]] = for (m <- methodImplWhere.patternMatch.zipWithIndex) yield {
+
+      val codeEnvironmentNested: CodeEnvironment = updateCodeEnvironment(codeEnvironment, m._1)
+
+      val p = buildPatternMatchCondition(codeEnvironmentNested, m._1)
+      val b = buildExtractor(codeEnvironmentNested, m._1)
+      val c = buildCode(codeEnvironmentNested, m._1)
+
+      val joined: Seq[CodeLine] = p ++ indented(b ++ c, 1) ++ Seq({
+        if (m._2 == (methodImplWhere.patternMatch.size-1))
+          CodeLine("}")
+        else
+          CodeLine("} else")
+      })
+      if (codeEnvironmentNested.generationPreferences.codeGenerationDebugComments) {
+        CodeLine(s"// Pattern matching function ${m._2+1}") +: joined
+      } else joined
+    }
+
+    // Insert an empty line between each group
+    val deGrouped: Seq[CodeLine] = codeLines.filter(_.nonEmpty).zipWithIndex.flatMap(f => {
+      if (f._2 == 0) {
+        f._1
+      } else {
+        f._1
+        //CodeLine("") +: f._1
+      }
+    })
+
+    deGrouped
+  }
+
+  def patternMatchesToCodeForMainFunction(codeEnvironment: CodeEnvironment, methodImplWhere: Method): Seq[CodeLine] = {
+/*
     val codeLines: Seq[Seq[CodeLine]] = for (m <- methodImplWhere.patterns.zipWithIndex) yield {
 
       val codeEnvironmentNested: CodeEnvironment = updateCodeEnvironment(codeEnvironment, m._1)
@@ -231,10 +280,27 @@ object TypeScript {
       }
     })
 
-    deGrouped
+    deGrouped*/
+    null
   }
 
-  def methodDefinition(methodImplWhere: Option[Grammar.MethodImplWhere], code: CodeGenerationPreferences, c: CodeEnvironment) = {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment) = {
     if (methodImplWhere.isDefined) {
       val last = methodImplWhere.get.methodDefinition.parameters.last
       val r = methodImplWhere.get.methodDefinition.parameters.dropRight(1)
@@ -243,11 +309,11 @@ object TypeScript {
       val paramNames = paramTypes.zipWithIndex.map((t: (String, Int)) => s"param${t._2 + 1}")
       val param = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${paramNames(t._2)}: ${basicTypeToTypescript(code, t._1, ft)}").mkString(", ")
 
-      val methodBody: String = (for (p <- methodImplWhere.get.patterns) yield {
+      val methodBody: String = (for (p <- methodImplWhere.get.patternMatch) yield {
         p.toString
       }).mkString("\n")
 
-      val what = methodImplWhere.get.patterns(1).rest.toString
+//      val what = methodImplWhere.get.patternMatch(1).rest.toString
 
       val what2 = codeLinesToString(2, patternMatchesToCode(c, methodImplWhere.get))
 
@@ -303,12 +369,12 @@ object TypeScript {
     idrisAst match {
       case Parsed.Success(value, index) => {
         if (value!=null) {
-          val methodLineParameterBindings = for (m <- value.methodLine)
+          val methodLineParameterBindings = for (m <- value.patternMatch)
             yield parameterBinding(value, m)
 
           val parameterTypes = for (p <- value.methodDefinition.parameters) yield (p.firstParam.name)
 
-          val methodLines = value.methodLine.size
+          val methodLines = value.patternMatch.size
           println(methodLines)
 
           // In the case of multiple method lines then the variable names maybe different so we need to use
@@ -347,8 +413,9 @@ object TypeScript {
               |
               |""".stripMargin
 
-          val methodImpl = methodCall(code, value.methodLine.head.methodCall)
-          val methodDef = methodDefinition(value.methodLine.head.methodImplWhere, code, codeEnvironment)
+          val methodChoices = patternMatchesToCodeForMainFunction(codeEnvironment, value)
+          val methodImpl = methodCall(code, value.patternMatch.head.methodCall)
+          val methodDef = methodDefinition(value.patternMatch.head.methodImplWhere, code, codeEnvironment)
           val functionDoc = docComments(code, params)
 
           val parameterized = if (ft.trim.isEmpty) "" else s"<$ft>"
