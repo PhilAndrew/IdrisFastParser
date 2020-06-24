@@ -16,7 +16,7 @@ object Grammar {
   case class MethodDefinition(name: String, parameters: Seq[MethodDefinitionParameter])
   case class MethodDefinitionParameter(firstParam: Identifier, rest: Seq[Identifier])
 
-  case class MethodParameter(name: Option[String], bracketedForm: Option[Bracketed] = None)
+  case class MethodParameter(name: Option[String], bracketedForm: Option[Bracketed] = None, extractionForm: Option[Extraction] = None)
   case class MethodNameBindings(methodName: Identifier, rest: Seq[MethodParameter])
 
   case class Method(methodDefinition: MethodDefinition, patternMatch: Seq[MethodLine])
@@ -76,8 +76,20 @@ object Grammar {
         val b = f._2.asInstanceOf[Seq[Bracketed]]
         MethodNameBindings(f._1.asInstanceOf[Identifier], b.map((m: Bracketed) => MethodParameter(None,
           bracketedForm = Some(Bracketed(Identifier("S"), Seq(Identifier("k")))))))
-      } else
-        MethodNameBindings(f._1.asInstanceOf[Identifier], Seq.empty)
+      } else {
+        val params: Seq[MethodParameter] = for (s: Product <- f._2) yield {
+          s match {
+            case i: Identifier => MethodParameter(Some(i.name))
+            case a: ArrayIdentifier => MethodParameter(Some(a.name))
+            case e: Extraction => MethodParameter(None, extractionForm = Some(e))
+            case _ => {
+              MethodParameter(None)
+            }
+          }
+        }
+        // 0 Identifier, 1 ArrayIdentifier
+        MethodNameBindings(f._1.asInstanceOf[Identifier], params)
+      }
     }
   }) ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide ~
      P(&(space ~ "where") ~ space ~ methodImplWhere).? )

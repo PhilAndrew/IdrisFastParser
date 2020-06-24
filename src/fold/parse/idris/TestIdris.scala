@@ -58,7 +58,7 @@ object TestIdris extends App {
     val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
     TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
-  //testRevAcc
+  testRevAcc
 
   println()
   def testIsSingleton = {
