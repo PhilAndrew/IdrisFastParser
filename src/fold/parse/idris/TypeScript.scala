@@ -39,6 +39,8 @@ object TypeScript {
       }
       case "Bool" => "boolean"
       case "Nat" => "number"
+      case "True" => "true"
+      case "False" => "false"
       case _ => t
     }
   }
@@ -55,6 +57,10 @@ object TypeScript {
       "LinkedList.of()"
   } else {
     "@todo ERROR"
+  }
+
+  def isCapitalized(name: String): Boolean = {
+    name.head.isUpper
   }
 
   def methodCall(ce: CodeEnvironment, code: CodeGenerationPreferences, methodCall: Grammar.MethodCall) = {
@@ -76,7 +82,10 @@ object TypeScript {
           }
         }
       }
-      s"  return ${methodCall.method.name}(${params.mkString(", ")})"
+      if (isCapitalized(methodCall.method.name))
+        s"  return ${basicTypeToTypescript(code, methodCall.method.name, "")}"
+      else
+        s"  return ${methodCall.method.name}(${params.mkString(", ")})"
     }
   }
 
@@ -220,7 +229,7 @@ object TypeScript {
       name
   }
 
-  def buildCode(codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
+  def buildCode(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
     val c2 = updateCodeEnvironment(codeEnvironment, patternMatch)
 
@@ -242,7 +251,10 @@ object TypeScript {
       }
 
       val parameters = p.mkString(", ")
-      Seq(CodeLine(s"return ${patternMatch.methodCall.method.name}(${parameters})"))
+      if (isCapitalized(patternMatch.methodCall.method.name))
+        Seq(CodeLine(s"return ${basicTypeToTypescript(code, patternMatch.methodCall.method.name, ")")}"))
+      else
+        Seq(CodeLine(s"return ${patternMatch.methodCall.method.name}(${parameters})"))
     }
   }
 
@@ -302,18 +314,18 @@ object TypeScript {
 
 
   // @todo Merge the next two functions
-  def patternMatchesToCode(codeEnvironment: CodeEnvironment, methodImplWhere: Grammar.Method): Seq[CodeLine] = {
+  def patternMatchesToCode(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, method: Grammar.Method): Seq[CodeLine] = {
 
-    val codeLines: Seq[Seq[CodeLine]] = for (m <- methodImplWhere.patternMatch.zipWithIndex) yield {
+    val codeLines: Seq[Seq[CodeLine]] = for (m <- method.patternMatch.zipWithIndex) yield {
 
       val codeEnvironmentNested: CodeEnvironment = updateCodeEnvironment(codeEnvironment, m._1)
 
       val p = buildPatternMatchCondition(codeEnvironmentNested, m._1)
       val b = buildExtractor(codeEnvironmentNested, m._1)
-      val c = buildCode(codeEnvironmentNested, m._1)
+      val c = buildCode(code, codeEnvironmentNested, m._1)
 
       val joined: Seq[CodeLine] = p ++ indented(b ++ c, 1) ++ Seq({
-        if (m._2 == (methodImplWhere.patternMatch.size-1))
+        if (m._2 == (method.patternMatch.size-1))
           CodeLine("}")
         else
           CodeLine("} else")
@@ -387,7 +399,7 @@ object TypeScript {
 
 
 
-  def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment) = {
+  def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment): Option[String] = {
     if (methodImplWhere.isDefined) {
       val last = methodImplWhere.get.methodDefinition.parameters.last
       val r = methodImplWhere.get.methodDefinition.parameters.dropRight(1)
@@ -402,13 +414,13 @@ object TypeScript {
 
 //      val what = methodImplWhere.get.patternMatch(1).rest.toString
 
-      val what2 = codeLinesToString(2, patternMatchesToCode(c, methodImplWhere.get))
+      val what2 = codeLinesToString(2, patternMatchesToCode(code, c, methodImplWhere.get))
 
       // @todo The function is parameterized by <${ft}> but I deleted that to make it work
-      s"""  function ${methodImplWhere.get.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.firstParam.name, ft)} {
+      Some(s"""  function ${methodImplWhere.get.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.firstParam.name, ft)} {
          |${what2}
-         |}""".stripMargin
-    } else ""
+         |  }""".stripMargin)
+    } else None
   }
 
   def docComments(code: CodeGenerationPreferences, params: Seq[(String, String)]): String = {
@@ -510,8 +522,14 @@ object TypeScript {
               |""".stripMargin
 
           val methodChoices = patternMatchesToCodeForMainFunction(codeEnvironment, value)
+
+          // value
           val methodImpl = methodCall(codeEnvironment, code, value.patternMatch.head.methodCall)
-          val methodDef = methodDefinition(value.patternMatch.head.methodImplWhere, code, codeEnvironment)
+
+          // Find all method definitions
+          val methodDefs = for (p <- value.patternMatch) yield methodDefinition(p.methodImplWhere, code, codeEnvironment)
+          val methodDef = methodDefs.flatten.mkString("\n")
+
           val functionDoc = docComments(code, params)
 
           val parameterized = if (ft.trim.isEmpty) "" else s"<$ft>"
