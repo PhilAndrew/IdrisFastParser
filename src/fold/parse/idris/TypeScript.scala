@@ -88,8 +88,17 @@ object TypeScript {
   }
 
   def buildExtractor(codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
-    (for (r <- patternMatch.methodCall.parameter.zipWithIndex) yield {
-      r._1 match {
+    (for (r <- patternMatch.left.rest.zipWithIndex) yield {
+      if (r._1.extractionForm.isDefined) {
+        val e = r._1.extractionForm.get
+
+        Seq(CodeLine(s"const ${prefix(codeEnvironment, e.first.name)} = head${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"),
+          CodeLine(s"const ${prefix(codeEnvironment, e.second.name)} = tail${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"))
+      } else {
+        Seq.empty[CodeLine]
+      }
+
+      /*r._1.extractionForm match {
         case e: Extraction => {
           Seq(CodeLine(s"const ${prefix(codeEnvironment, e.first.name)} = head${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"),
             CodeLine(s"const ${prefix(codeEnvironment, e.second.name)} = tail${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"))
@@ -113,7 +122,7 @@ object TypeScript {
             Seq(CodeLine("?notFound"))
         }
         case _ => Seq.empty
-      }
+      }*/
     }).flatten
   }
 
@@ -221,7 +230,8 @@ object TypeScript {
       val p = for (p <- patternMatch.methodCall.parameter) yield {
         p match {
           case i: Identifier => {
-            localVariable(c2, declaredIdentifier(c2, i.name))
+            i.name
+            //localVariable(c2, declaredIdentifier(c2, i.name))
           }
           case e: Extraction => {
             // Do prepend
