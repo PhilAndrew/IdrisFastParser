@@ -229,6 +229,10 @@ object TypeScript {
       None
   }
 
+  def getScopedVariable(codeEnvironment: CodeEnvironment, name: String): Option[LocalVariable] = {
+    codeEnvironment.localVariablesFromMethodParameterScope.find(_.variableAlias.contains(name))
+  }
+
   def buildCode(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
     val c2 = updateCodeEnvironment(codeEnvironment, patternMatch)
@@ -268,8 +272,14 @@ object TypeScript {
       val parameters = p.mkString(", ")
       if (isCapitalized(patternMatch.methodCall.method.name))
         Seq(CodeLine(s"return ${basicTypeToTypescript(code, patternMatch.methodCall.method.name, ")")}"))
-      else
-        Seq(CodeLine(s"return ${patternMatch.methodCall.method.name}(${parameters})"))
+      else {
+        // If no parameters then it may be a scoped variable
+        val scoped = getScopedVariable(codeEnvironment, patternMatch.methodCall.method.name)
+        if (p.isEmpty && scoped.isDefined) {
+          Seq(CodeLine(s"return ${scoped.get.variableName}"))
+        } else
+          Seq(CodeLine(s"return ${patternMatch.methodCall.method.name}(${parameters})"))
+      }
     }
   }
 
@@ -496,10 +506,13 @@ object TypeScript {
     ParameterBinding(bindings)
   }
 
-  def toTypescriptAST(fileName: String, idrisAst: Parsed[Grammar.Method], code: CodeGenerationPreferences) = {
+  def toTypescriptAST(fileName: String, idrisAst: Parsed[Grammar.ParsedFile], code: CodeGenerationPreferences) = {
+
     idrisAst match {
-      case Parsed.Success(value, index) => {
-        if (value!=null) {
+      case Parsed.Success(value2, index) => {
+
+        if (value2.method.isDefined) {
+          val value = value2.method.get
           val methodLineParameterBindings = for (m <- value.patternMatch)
             yield parameterBinding(value, m)
 

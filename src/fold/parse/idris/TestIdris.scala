@@ -76,7 +76,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  //testIsSingleton
+  testIsSingleton
 
 
   println()
@@ -101,7 +101,57 @@ object TestIdris extends App {
   //testEventOdd
 
 
+  println()
+  def testData() = {
+    val str = """
+                |data Pair a b = MkPair a b
+                |""".stripMargin
 
+    /*
+
+fred : (String, Int)
+fred = ("Fred", 42)
+
+jim : (String, Int, String)
+jim = ("Jim", 25, "Cambridge")
+     */
+    val result = parse(str, Grammar.fileContents(_))
+    println(str)
+    pprint.pprintln(result)
+    val postProcess = PostProcess.postProcessParse(result)
+
+    val code1 = CodeGenerationPreferences()
+    TypeScript.toTypescriptAST("generatedDataPair.ts", postProcess, code1);
+
+
+    val fakeOutput =
+      """
+        |class Pair<A,B> {
+        |  a: A;
+        |  b: B;
+        |  constructor(a: A, b: B) {
+        |    this.a = a;
+        |    this.b = b;
+        |  }
+        |}
+        |
+        |function newMkPair<A, B>(a: A, b: B) {
+        |  return new Pair<A, B>(a, b);
+        |}
+        |
+        |
+        |""".stripMargin
+    val fileName = "generatedDataPair.ts"
+    Files.writeString(Path.of("typescript/src/test/" + fileName), fakeOutput)
+
+
+
+
+    println("Done")
+  }
+  testData()
+
+  println()
 
 
 

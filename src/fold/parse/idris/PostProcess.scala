@@ -1,7 +1,7 @@
 package fold.parse.idris
 
 import fastparse.Parsed
-import fold.parse.idris.Grammar.Method
+import fold.parse.idris.Grammar.{Data, Method, ParsedFile}
 
 object PostProcess {
 
@@ -12,23 +12,32 @@ object PostProcess {
   // The functions which are in scope
   def functionsInScope(): Seq[String] = ???
 
-  def postProcessParse(result: Parsed[Method]): Parsed[Method] = {
+
+  def postProcessParse(result: Parsed[ParsedFile]): Parsed[ParsedFile] = {
+
     import com.softwaremill.quicklens._
+
+
     result match {
-      case Parsed.Success(value, index) => {
-        if (value.patternMatch.head.methodImplWhere.isDefined) {
-          val patterns = value.patternMatch.head.methodImplWhere.get.patternMatch
-          val newPatterns = for (p <- patterns) yield {
-            // @todo This is a bad heuristic, we are attempting to identify if this is a method call or
-            // @todo something else, in this positive case we assume something else
-            if (p.methodCall.parameter.isEmpty) {
-              p.modify(_.methodCall.isReferenceNotMethodCall).setTo(true)
-            } else p
+      case Parsed.Success(file, index) => {
+        if (file.method.isDefined) {
+          val value = file.method.get
+          if (value.patternMatch.head.methodImplWhere.isDefined) {
+            val patterns = value.patternMatch.head.methodImplWhere.get.patternMatch
+            val newPatterns = for (p <- patterns) yield {
+              // @todo This is a bad heuristic, we are attempting to identify if this is a method call or
+              // @todo something else, in this positive case we assume something else
+              if (p.methodCall.parameter.isEmpty) {
+                p.modify(_.methodCall.isReferenceNotMethodCall).setTo(true)
+              } else p
+            }
+            val value2 = value.modify(_.patternMatch.at(0).methodImplWhere.each.patternMatch).setTo(newPatterns)
+            val file2 = file.modify(_.method).setTo(Some(value))
+            Parsed.Success(file2, index)
+          } else {
+            Parsed.Success(file, index)
           }
-          Parsed.Success(value.modify(_.patternMatch.at(0).methodImplWhere.each.patternMatch).setTo(newPatterns), index)
-        } else {
-          Parsed.Success(value, index)
-        }
+        } else result
       }
       case _ => result
     }

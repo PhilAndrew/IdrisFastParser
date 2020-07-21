@@ -27,13 +27,27 @@ object Grammar {
   case class Extraction(first: Identifier, second: Identifier)
   case class Bracketed(first: Identifier, second: Seq[Identifier])
 
+  case class DataType(first: Identifier, second: Seq[Identifier])
+  case class DataConstructor()
+  case class Data(dataType: DataType, constructors: Seq[DataConstructor])
 
-
+  case class ParsedFile(method: Option[Method])
 
   def consumeEmptyLines[_: P] = P(optSpace ~ newLine).rep(0)
 
+  def fileContents[_: P] = P(P(consumeEmptyLines ~ optSpace ~ block ~ optSpace).rep(0)  ~ consumeEmptyLines ~ End).map((f) => {
+    ParsedFile(None)
+  })
+
+  def block[_: P] = P(dataDefinition | method)
+
+  // data Pair a b = MkPair a b
+  def dataDefinition[_: P] = P("data" ~ space ~ "Pair" ~ space ~ "a" ~ space ~ "b" ~ space ~ "=" ~ space ~ "MkPair" ~ space ~ "a" ~ space ~ "b").map((d) => {
+    Data(DataType(Identifier("Pair"), Seq.empty), Seq.empty)
+  })
+
   def method[_: P] = P ( optSpace ~ methodDecl ~ optSpace ~ P(newLine ~ optSpace ~ methodImpl ~ optSpace).rep(0) ~ consumeEmptyLines ~ End)
-    .map(f => Method(f._1, f._2))
+    .map(f => ParsedFile(Some(Method(f._1, f._2))))
 
   def newLine[_: P] = P("\n")
 

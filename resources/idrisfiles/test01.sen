@@ -1,4 +1,6 @@
 
+# Functions take a sentence format
+
 reverse :List.a = :List.a
 reverse list = revAcc [] list
 revAcc acc [] = acc
@@ -17,5 +19,4 @@ assert head a in b for reverse a b where a is :List.number
 #   revAcc : List a -> List a -> List a
 #   revAcc acc [] = acc
 #   revAcc acc (x :: xs) = revAcc (x :: acc) xs
-
 
