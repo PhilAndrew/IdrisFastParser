@@ -12,17 +12,18 @@ object Grammar {
   }*/
   case class Identifier(name: String)
   case class ArrayIdentifier(name: String, isEmpty: Boolean)
-  case class DataValue(name: Identifier)
   case class MethodDefinition(name: String, parameters: Seq[MethodDefinitionParameter])
-  case class MethodDefinitionParameter(firstParam: Identifier, rest: Seq[Identifier])
+  case class MethodDefinitionParameter(param: Identifier, rest: Seq[Identifier])
 
   case class MethodParameter(name: Option[String], bracketedForm: Option[Bracketed] = None, extractionForm: Option[Extraction] = None)
   case class MethodNameBindings(methodName: Identifier, rest: Seq[MethodParameter])
 
   case class Method(methodDefinition: MethodDefinition, patternMatch: Seq[MethodLine])
-  case class MethodLine(left: MethodNameBindings, methodCall: MethodCall, methodImplWhere: Option[Method])
+  case class MethodLine(left: MethodNameBindings, statement: DataValueOrMethodCall, methodImplWhere: Option[Method])
 
+  case class DataValueOrMethodCall(dataValue: Option[DataValue], methodCall: Option[MethodCall])
   case class MethodCall(method: Identifier, parameter: Seq[Product], isReferenceNotMethodCall: Boolean = false, isDataResultNotMethodCall: Boolean = false)
+  case class DataValue(name: Identifier, rest: Seq[Identifier])
 
   case class Extraction(first: Identifier, second: Identifier)
   case class Bracketed(first: Identifier, second: Seq[Identifier])
@@ -130,7 +131,7 @@ object Grammar {
   }
 
   // Calling a method
-  def methodCall[_: P] = P ( methodCallIdentifiers ).map(f => MethodCall(f._1, {
+  def methodCall[_: P]: P[DataValueOrMethodCall] = P ( methodCallIdentifiers ).map(f => DataValueOrMethodCall ( None, Some( MethodCall(f._1, {
     for (n <- f._2.toList) yield {
       n match {
         case Identifier(s) => Identifier(s)
@@ -138,7 +139,7 @@ object Grammar {
         case _ => n
       }
     }
-  }))
+  }))))
 
   def methodCallIdentifiers[_: P] = P(methodCallIdentifier) ~ P(!(space ~ "where") ~ space ~ methodCallParameter).rep(0)
   //def methodCallIdentifiers2[_: P] = P(methodCallIdentifier) ~ P(space ~ methodCallParameter).rep(0)
@@ -152,8 +153,12 @@ object Grammar {
   methodCall
    */
 
-  def dataValue[_: P] = P(&(Lexical.uppercase) ~ Lexical.identifier ~ P(&(space ~ Lexical.uppercase) ~ space ~ Lexical.identifier).rep(0)).map(f => {
-    MethodCall(f._1, f._2, isDataResultNotMethodCall = true)
+  def dataValue[_: P]: P[DataValueOrMethodCall] = P(&(Lexical.uppercase) ~ Lexical.identifier ~ P(&(space ~ Lexical.uppercase) ~ space ~ Lexical.identifier).rep(0)).map(f => {
+    if (f._1.toString.head.isUpper) {
+      DataValueOrMethodCall(Some(DataValue(f._1, f._2)), None)
+    } else {
+      DataValueOrMethodCall(None, Some(MethodCall(f._1, f._2, isDataResultNotMethodCall = true)))
+    }
   })
   def patternMatchRightSide[_: P] = P(dataValue | methodCall)
 

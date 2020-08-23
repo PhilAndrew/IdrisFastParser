@@ -18,7 +18,7 @@ object TypeScript {
                                        usePreludeTsVectorForList: Boolean = true,
                                        usePreludeTsListForList: Boolean = false,
                                        placeFunctionsIntoClasses: Boolean = false,
-                                       codeGenerationDebugComments: Boolean = false) {
+                                       codeGenerationDebugComments: Boolean = true) {
     def listType() = if (usePreludeTsVectorForList) "Vector" else if (usePreludeTsListForList) "LinkedList" else ""
   }
 
@@ -41,6 +41,7 @@ object TypeScript {
       case "Nat" => "number"
       case "True" => "true"
       case "False" => "false"
+      case "Type" => "string"
       case _ => t
     }
   }
@@ -163,6 +164,12 @@ object TypeScript {
         if (r.get == "Z")
           Some(s"(${param} == 0)")
         else
+        if (r.get == "True")
+          Some(s"(${param} === true)")
+        else
+        if (r.get == "False")
+          Some(s"(${param} === false)")
+        else
           None
       } else None
     }
@@ -245,10 +252,15 @@ object TypeScript {
       }
     }
 
-    if (patternMatch.methodCall.isReferenceNotMethodCall)
-      Seq(CodeLine(s"return ${localVariable(c2, patternMatch.methodCall.method.name).get}"))
+    if (patternMatch.statement.dataValue.isDefined) {
+      val r = (for (i <- patternMatch.statement.dataValue.get.rest) yield i.name).mkString(" ")
+      val i = if (r.size > 0) " " + r else ""
+      Seq(CodeLine(s"""return "${patternMatch.statement.dataValue.get.name.name}$i""""))
+    } else
+    if ((patternMatch.statement.methodCall.isDefined) && (patternMatch.statement.methodCall.get.isReferenceNotMethodCall))
+      Seq(CodeLine(s"return ${localVariable(c2, patternMatch.statement.methodCall.get.method.name).get}"))
     else {
-      val p = for (p <- patternMatch.methodCall.parameter) yield {
+      val p = for (p <- patternMatch.statement.methodCall.get.parameter) yield {
         p match {
           case i: Identifier => {
             la(i)
@@ -270,15 +282,15 @@ object TypeScript {
       }
 
       val parameters = p.mkString(", ")
-      if (isCapitalized(patternMatch.methodCall.method.name))
-        Seq(CodeLine(s"return ${basicTypeToTypescript(code, patternMatch.methodCall.method.name, ")")}"))
+      if (isCapitalized(patternMatch.statement.methodCall.get.method.name))
+        Seq(CodeLine(s"return ${basicTypeToTypescript(code, patternMatch.statement.methodCall.get.method.name, ")")}"))
       else {
         // If no parameters then it may be a scoped variable
-        val scoped = getScopedVariable(codeEnvironment, patternMatch.methodCall.method.name)
+        val scoped = getScopedVariable(codeEnvironment, patternMatch.statement.methodCall.get.method.name)
         if (p.isEmpty && scoped.isDefined) {
           Seq(CodeLine(s"return ${scoped.get.variableName}"))
         } else
-          Seq(CodeLine(s"return ${patternMatch.methodCall.method.name}(${parameters})"))
+          Seq(CodeLine(s"return ${patternMatch.statement.methodCall.get.method.name}(${parameters})"))
       }
     }
   }
@@ -345,7 +357,9 @@ object TypeScript {
   // @todo Merge the next two functions
   def patternMatchesToCode(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, method: Grammar.Method): Seq[CodeLine] = {
 
-    val codeLines: Seq[Seq[CodeLine]] = for (m <- method.patternMatch.zipWithIndex) yield {
+
+
+    val what = for (m <- method.patternMatch.zipWithIndex) yield {
 
       val codeEnvironmentNested: CodeEnvironment = updateCodeEnvironment(codeEnvironment, m._1)
 
@@ -353,24 +367,41 @@ object TypeScript {
       val b = buildExtractor(codeEnvironmentNested, m._1)
 
       val codeEnvironmentExtractor = buildExtractorLocalVariables(codeEnvironmentNested, m._1)
+      (m._1, m._2, codeEnvironmentNested, p, b, codeEnvironmentExtractor)
+    }
+
+    val codeLines: Seq[Seq[CodeLine]] = for (m <- what) yield {
+      val codeEnvironmentNested: CodeEnvironment = m._3
+      val p = m._4
+      val b = m._5
+      val codeEnvironmentExtractor = m._6
 
       // @todo At this point at buildExtractor above we need to copy new codeEnvironmentNested variables into it
       val c = buildCode(code, codeEnvironmentExtractor, m._1)
 
-      val joined: Seq[CodeLine] = p ++ indented(b ++ c, 1) ++ {
-        if ((m._2 == (method.patternMatch.size-1))) {
-          if (m._2 == 0) Seq.empty else
-          Seq(CodeLine("}"))
-        } else
-          Seq(CodeLine("} else { "))
+      val joined: Seq[CodeLine] = if (p.isEmpty) {
+        p ++ indented(b ++ c, 0)
       }
-      if (codeEnvironmentExtractor.generationPreferences.codeGenerationDebugComments) {
+      else {
+        p ++ indented(b ++ c, 1)
+      }
+
+      val result = if (codeEnvironmentExtractor.generationPreferences.codeGenerationDebugComments) {
         CodeLine(s"// Pattern matching function ${m._2+1}") +: joined
       } else joined
+
+      if (p.isEmpty) result else result ++ Seq(CodeLine("}"))
+    }
+    val hasDefaultMatch = what.exists(_._4.isEmpty)
+
+    val result: Seq[Seq[CodeLine]] = if (hasDefaultMatch) {
+      codeLines
+    } else {
+      codeLines ++ Seq(Seq(CodeLine("""return """"")))
     }
 
     // Insert an empty line between each group
-    val deGrouped: Seq[CodeLine] = codeLines.filter(_.nonEmpty).zipWithIndex.flatMap(f => {
+    val deGrouped: Seq[CodeLine] = result.filter(_.nonEmpty).zipWithIndex.flatMap(f => {
       if (f._2 == 0) {
         f._1
       } else {
@@ -436,7 +467,7 @@ object TypeScript {
     if (methodImplWhere.isDefined) {
       val last = methodImplWhere.get.methodDefinition.parameters.last
       val r = methodImplWhere.get.methodDefinition.parameters.dropRight(1)
-      val paramTypes = for (p <- r) yield p.firstParam.name
+      val paramTypes = for (p <- r) yield p.param.name
       val ft = "a"
       val paramNames = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${methodImplWhere.get.methodDefinition.name}Param${t._2 + 1}")
       val param = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${paramNames(t._2)}: ${basicTypeToTypescript(code, t._1, ft)}").mkString(", ")
@@ -450,7 +481,7 @@ object TypeScript {
       val what2 = codeLinesToString(2, patternMatchesToCode(code, c, methodImplWhere.get))
 
       // @todo The function is parameterized by <${ft}> but I deleted that to make it work
-      Some(s"""  function ${methodImplWhere.get.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.firstParam.name, ft)} {
+      Some(s"""  function ${methodImplWhere.get.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.param.name, ft)} {
          |${what2}
          |  }""".stripMargin)
     } else None
@@ -501,7 +532,7 @@ object TypeScript {
 
     val bindings = for (p <- parameterNames.zip(methodLineParameters).zip(methodDef)) yield {
       // @todo Bracketed binding
-      Binding(p._1._1, if (p._1._2.name.isEmpty) None else if (isDataType(p._1._2.name.get)) None else Some(p._1._2.name.get), p._2.firstParam.name, None)
+      Binding(p._1._1, if (p._1._2.name.isEmpty) None else if (isDataType(p._1._2.name.get)) None else Some(p._1._2.name.get), p._2.param.name, None)
     }
     ParameterBinding(bindings)
   }
@@ -516,7 +547,7 @@ object TypeScript {
           val methodLineParameterBindings = for (m <- value.patternMatch)
             yield parameterBinding(value, m)
 
-          val parameterTypes = for (p <- value.methodDefinition.parameters) yield (p.firstParam.name)
+          val parameterTypes = for (p <- value.methodDefinition.parameters) yield (p.param.name)
 
           val methodLines = value.patternMatch.size
           println(methodLines)
@@ -573,11 +604,14 @@ object TypeScript {
 
           val parameterized = if (ft.trim.isEmpty) "" else s"<$ft>"
 
+          val methodDefAndImpl = if (methodDef.trim.isEmpty) methodImpl else
+          """${methodDef}
+          |${methodImpl}""".mkString
+
           val function = s"""${functionDoc}
                             |export function ${value.methodDefinition.name}${parameterized}(${parametersStr.mkString(", ")}): ${basicTypeToTypescript(code, parameterTypes.last, ft)}
              |{
-             |${methodDef}
-             |${methodImpl}
+             |${methodDefAndImpl}
              |}""".stripMargin
 
           val output = header + function

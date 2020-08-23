@@ -1,7 +1,7 @@
 package fold.parse.idris
 
 import fastparse.Parsed
-import fold.parse.idris.Grammar.{Data, Method, ParsedFile}
+import fold.parse.idris.Grammar.{Data, DataValue, Method, MethodCall, ParsedFile}
 
 object PostProcess {
 
@@ -27,9 +27,17 @@ object PostProcess {
             val newPatterns = for (p <- patterns) yield {
               // @todo This is a bad heuristic, we are attempting to identify if this is a method call or
               // @todo something else, in this positive case we assume something else
-              if (p.methodCall.parameter.isEmpty) {
-                p.modify(_.methodCall.isReferenceNotMethodCall).setTo(true)
-              } else p
+              if (p.statement.dataValue.isDefined) {
+                println("Case")
+                p
+              } else {
+                val m = p.statement.methodCall
+                if (p.statement.methodCall.get.parameter.isEmpty) {
+                  p.modify(_.statement.methodCall.each.isReferenceNotMethodCall).setTo(true)
+                } else p
+              }
+
+
             }
             val value2 = value.modify(_.patternMatch.at(0).methodImplWhere.each.patternMatch).setTo(newPatterns)
             val file2 = file.modify(_.method).setTo(Some(value))

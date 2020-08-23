@@ -58,7 +58,7 @@ object TestIdris extends App {
     val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
     TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
-  testRevAcc
+  //testRevAcc
 
   println()
   def testIsSingleton = {
@@ -76,8 +76,26 @@ object TestIdris extends App {
 
     println("Done")
   }
-  testIsSingleton
+  //testIsSingleton
 
+
+  println()
+  def testPlus = {
+    val str =
+      """plus : Nat -> Nat -> Nat
+        |plus Z     y = y
+        |plus (S k) y = S (plus k y)""".stripMargin
+    val result = parse(str, Grammar.method(_))
+    println(str)
+    pprint.pprintln(result)
+    val postProcess = PostProcess.postProcessParse(result)
+
+    val code1 = CodeGenerationPreferences()
+    TypeScript.toTypescriptAST("generatedPlus.ts", postProcess, code1);
+
+    println("Done")
+  }
+  //testPlus
 
   println()
   def testEventOdd = {
@@ -149,7 +167,89 @@ jim = ("Jim", 25, "Cambridge")
 
     println("Done")
   }
-  testData()
+  //testData()
+
+  def testData2() = {
+    // Polymorphic lists
+    val str =
+      """
+        |data List a = Nil | (::) a (List a)
+        |""".stripMargin
+
+    val fakeOutout =
+      """
+        |
+        |interface List {
+        |}
+        |
+        |class ListNil implements List {
+        |}
+        |
+        |class ListAppend<A> implements List {
+        |  a: A;
+        |  b: List;
+        |  constructor(a: A, b: List) {
+        |    this.a = a;
+        |    this.b = b;
+        |  }
+        |}
+        |
+        |function newListNil() {
+        |  return new ListNil();
+        |}
+        |
+        |function newListAppend<A>(a: A, b: List) {
+        |  return new ListAppend<A>(a, b);
+        |}
+        |""".stripMargin
+
+    val fileName = "generatedDataList.ts"
+    Files.writeString(Path.of("typescript/src/test/" + fileName), fakeOutout)
+  }
+  //testData2()
+
+  def testData3() = {
+    // Polymorphic lists
+    val str =
+      """
+        |data Vect : Nat -> Type -> Type where
+        |  Nil  : Vect Z a
+        |  (::) : (x : a) -> (xs : Vect n a) -> Vect (S n) a
+        |""".stripMargin
+
+    val fakeOutout =
+      """
+        |
+        |interface Vect {
+        |  a: number;
+        |}
+        |
+        |class VectNil implements Vect {
+        |  a: number = 0;
+        |}
+        |
+        |class VectAppend implements Vect {
+        |  a: number = 0;
+        |  constructor(a: number) {
+        |    this.a = a;
+        |  }
+        |}
+        |
+        |function newVectNil() {
+        |  return new VectNil();
+        |}
+        |
+        |function newVectAppend(a: number) {
+        |  return new VectAppend(a);
+        |}
+        |
+        |
+        |""".stripMargin
+
+    val fileName = "generatedDataVect.ts"
+    Files.writeString(Path.of("typescript/src/test/" + fileName), fakeOutout)
+  }
+  //testData3()
 
   println()
 
