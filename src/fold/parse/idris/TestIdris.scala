@@ -116,7 +116,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  //testEventOdd
+  testEventOdd
 
 
   println()

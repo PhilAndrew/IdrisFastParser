@@ -18,7 +18,7 @@ object TypeScript {
                                        usePreludeTsVectorForList: Boolean = true,
                                        usePreludeTsListForList: Boolean = false,
                                        placeFunctionsIntoClasses: Boolean = false,
-                                       codeGenerationDebugComments: Boolean = true) {
+                                       codeGenerationDebugComments: Boolean = false) {
     def listType() = if (usePreludeTsVectorForList) "Vector" else if (usePreludeTsListForList) "LinkedList" else ""
   }
 
@@ -240,6 +240,14 @@ object TypeScript {
     codeEnvironment.localVariablesFromMethodParameterScope.find(_.variableAlias.contains(name))
   }
 
+  def constantOf(name: String): Option[String] = {
+    if (name.equals("True"))
+      Some("true")
+    else if (name.equals("False"))
+      Some("false")
+      else None
+  }
+
   def buildCode(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
     val c2 = updateCodeEnvironment(codeEnvironment, patternMatch)
@@ -255,7 +263,12 @@ object TypeScript {
     if (patternMatch.statement.dataValue.isDefined) {
       val r = (for (i <- patternMatch.statement.dataValue.get.rest) yield i.name).mkString(" ")
       val i = if (r.size > 0) " " + r else ""
-      Seq(CodeLine(s"""return "${patternMatch.statement.dataValue.get.name.name}$i""""))
+
+      val c = constantOf(patternMatch.statement.dataValue.get.name.name)
+      if (c.isDefined)
+        Seq(CodeLine(s"""return ${c.get}"""))
+      else
+        Seq(CodeLine(s"""return "${patternMatch.statement.dataValue.get.name.name}$i""""))
     } else
     if ((patternMatch.statement.methodCall.isDefined) && (patternMatch.statement.methodCall.get.isReferenceNotMethodCall))
       Seq(CodeLine(s"return ${localVariable(c2, patternMatch.statement.methodCall.get.method.name).get}"))
@@ -605,7 +618,7 @@ object TypeScript {
           val parameterized = if (ft.trim.isEmpty) "" else s"<$ft>"
 
           val methodDefAndImpl = if (methodDef.trim.isEmpty) methodImpl else
-          """${methodDef}
+          s"""${methodDef}
           |${methodImpl}""".mkString
 
           val function = s"""${functionDoc}
