@@ -18,7 +18,9 @@ object TypeScript {
                                        usePreludeTsVectorForList: Boolean = true,
                                        usePreludeTsListForList: Boolean = false,
                                        placeFunctionsIntoClasses: Boolean = false,
-                                       codeGenerationDebugComments: Boolean = false) {
+                                       codeGenerationDebugComments: Boolean = false,
+                                       useNodeJSLibraryOffensive: Boolean = true,
+                                       useSingleQuotesElseDoubleQuotes: Boolean = true) {
     def listType() = if (usePreludeTsVectorForList) "Vector" else if (usePreludeTsListForList) "LinkedList" else ""
   }
 
@@ -462,10 +464,17 @@ object TypeScript {
   }
 
 
-  def methodAssertions(paramNames: Seq[String], paramTypes: Seq[String]): Seq[CodeLine] = {
-    for (p <- paramNames.zip(paramTypes)) yield {
-      CodeLine(s"""assert (${p._1} >= 0, "Must be a zero or positive integer value")""")
+  def methodAssertions(code: CodeGenerationPreferences, paramNames: Seq[String], paramTypes: Seq[String]): Seq[CodeLine] = {
+    val result = for (p <- paramNames.zip(paramTypes)) yield {
+      p._2 match {
+        case "Nat" => {
+          Seq(CodeLine(s"""check(${p._1}, ${quoteString(code, p._1)}).is.anInteger()"""),
+            CodeLine(s"""check(${p._1}, ${quoteString(code, p._1)}).is.greaterThanOrEqualTo(0)()"""))
+        }
+        case _ => Seq.empty
+      }
     }
+    result.flatten.toSeq
   }
 
   def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment): Option[String] = {
@@ -483,14 +492,15 @@ object TypeScript {
 
 //      val what = methodImplWhere.get.patternMatch(1).rest.toString
 
-      val a: Seq[CodeLine] = methodAssertions(paramNames, paramTypes)
+      val a: Seq[CodeLine] = methodAssertions(code, paramNames, paramTypes)
 
       val pat = patternMatchesToCode(code, c, methodImplWhere.get)
 
       val what2 = codeLinesToString(2, a ++ pat)
 
       // @todo The function is parameterized by <${ft}> but I deleted that to make it work
-      Some(s"""  function ${methodImplWhere.get.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.param.name, ft)} {
+      Some(s"""
+         |  function ${methodImplWhere.get.methodDefinition.name}($param): ${basicTypeToTypescript(code, last.param.name, ft)} {
          |${what2}
          |  }""".stripMargin)
     } else None
@@ -546,6 +556,10 @@ object TypeScript {
     ParameterBinding(bindings)
   }
 
+  def quoteString(code: CodeGenerationPreferences, str: String) = {
+    if (code.useSingleQuotesElseDoubleQuotes) s"""'${str}'""" else s""""${str}""""
+  }
+
   def toTypescriptAST(fileName: String, idrisAst: Parsed[Grammar.ParsedFile], code: CodeGenerationPreferences) = {
 
     idrisAst match {
@@ -584,8 +598,12 @@ object TypeScript {
           val parametersStr = for (p <- params) yield (p._1 + ": " + basicTypeToTypescript(code, p._2, ft))
 
           val header =
-            s"""// npm install --save prelude-ts
-              |import { Vector, LinkedList } from "prelude-ts";
+            s"""// https://github.com/emmanueltouzery/prelude-ts
+              |// npm install --save prelude-ts
+              |import { Vector, LinkedList } from ${quoteString(code, "prelude-ts")};
+              |// https://www.npmjs.com/package/offensive
+              |// npm install --save offensive
+              |import check from ${quoteString(code, "offensive")};
               |
               |function head${code.listType()}<a>(param: ${code.listType()}<a>): a {
               |  return param.head().getOrThrow()
@@ -594,8 +612,6 @@ object TypeScript {
               |function tail${code.listType()}<a>(param: ${code.listType()}<a>): ${code.listType()}<a> {
               |  return param.tail().getOrElse(${emptyList(code)})
               |}
-              |
-              |declare function assert(value: unknown, comment: string): asserts value;
               |
               |""".stripMargin
 
@@ -618,17 +634,15 @@ object TypeScript {
           val paramNames = params.map(_._1)
           val paramTypes = params.map(_._2)
 
-          val m = methodAssertions(paramNames, paramTypes)
-          val cts = codeLinesToString(2, m)
+          val m = methodAssertions(code, paramNames, paramTypes)
 
           val methodDefAndImpl = if (methodDef.trim.isEmpty) methodImpl else
           s"""${methodDef}
           |${methodImpl}""".mkString
 
           val alsoAssert: String = if (m.isEmpty) methodDefAndImpl else
-            s"""${codeLinesToString(2, m)}
-               |$methodDefAndImpl
-               |""".stripMargin
+            s"""${codeLinesToString(1, m)}
+               |$methodDefAndImpl""".stripMargin
 
           val function = s"""${functionDoc}
                             |export function ${value.methodDefinition.name}${parameterized}(${parametersStr.mkString(", ")}): ${basicTypeToTypescript(code, parameterTypes.last, ft)}
