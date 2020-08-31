@@ -41,8 +41,13 @@ object TypeScript {
   case class PartialCodeLine(code: String, nodeJsLibraryUsage: Seq[NodeJsLibrary] = Seq.empty)
   case class CodeLine(line: Seq[PartialCodeLine], indentLevel: Int = 0, nodeJsLibraryUsage: Seq[NodeJsLibrary] = Seq.empty)
 
-  val preludeTsVectorForList = NodeJsLibrary("Vector", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("Vector"))
-  val preludeTsListForList = NodeJsLibrary("LinkedList", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("LinkedList"))
+  val preludeTsVectorForList = NodeJsLibrary("Vector", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("import Vector from 'prelude-ts'"))
+  val preludeTsListForList = NodeJsLibrary("LinkedList", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("import LinkedList from 'prelude-ts'"))
+  val assertNodeJsLibrary = NodeJsLibrary("Offensive", "https://www.npmjs.com/package/offensive", "offensive",
+    Seq("import 'offensive/assertions/length'",
+    "import 'offensive/assertions/anInteger'",
+    "import 'offensive/assertions/greaterThanOrEqualTo'",
+    "import check from 'offensive'"))
 
   // Use linked list
   // https://github.com/immutable-js/immutable-js
@@ -163,13 +168,15 @@ object TypeScript {
   def codeLinesToString(indent: Int, lines: Seq[CodeLine]): String = {
     val i = if (lines.size == 1) indent -1 else indent
     (for (l <- lines) yield {
-      "  ".repeat(i + l.indentLevel).mkString + l.line
+      "  ".repeat(i + l.indentLevel).mkString + toTypescript2(l.line)
     }).mkString("\n")
   }
 
   def emptyCodeLine() = defaultCodeLine("")
 
-  def buildPatternMatchCondition(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
+  def buildPatternMatchCondition(code: CodeGenerationPreferences,
+                                 codeEnvironment: CodeEnvironment,
+                                 patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
     val lines: Seq[Option[String]] = for (rr <- patternMatch.left.rest.zipWithIndex) yield {
       val r = rr._1.name
@@ -323,7 +330,7 @@ object TypeScript {
           }
           case a: ArrayIdentifier => {
             if (a.isEmpty)
-              emptyListInstance(code)
+              toTypescript(emptyListInstance(code))
             else {
               throw new Exception("Error")
               ""
@@ -426,13 +433,13 @@ object TypeScript {
       val codeEnvironmentExtractor = m._6
 
       // @todo At this point at buildExtractor above we need to copy new codeEnvironmentNested variables into it
-      val c = buildCode(code, codeEnvironmentExtractor, m._1)
+      val codeBuilt = buildCode(code, codeEnvironmentExtractor, m._1)
 
       val joined: Seq[CodeLine] = if (p.isEmpty) {
-        p ++ indented(b ++ c, 0)
+        p ++ indented(b ++ codeBuilt, 0)
       }
       else {
-        p ++ indented(b ++ c, 1)
+        p ++ indented(b ++ codeBuilt, 1)
       }
 
       val result = if (codeEnvironmentExtractor.generationPreferences.codeGenerationDebugComments) {
@@ -458,17 +465,20 @@ object TypeScript {
         //CodeLine("") +: f._1
       }
     })
-
     deGrouped
   }
 
+
+  def codeLineAssert(code: CodeGenerationPreferences, c: String): CodeLine = {
+    CodeLine(partialCodeLine(c), 0, nodeJsLibraryOf(code))
+  }
 
   def methodAssertions(code: CodeGenerationPreferences, paramNames: Seq[String], paramTypes: Seq[String]): Seq[CodeLine] = {
     val result = for (p <- paramNames.zip(paramTypes)) yield {
       p._2 match {
         case "Nat" => {
-          Seq(defaultCodeLine(s"""check(${p._1}, ${quoteString(code, p._1)}).is.anInteger()"""),
-            defaultCodeLine(s"""check(${p._1}, ${quoteString(code, p._1)}).is.greaterThanOrEqualTo(0)()"""))
+          Seq(codeLineAssert(code, s"""check(${p._1}, ${quoteString(code, p._1)}).is.anInteger()"""),
+            codeLineAssert(code, s"""check(${p._1}, ${quoteString(code, p._1)}).is.greaterThanOrEqualTo(0)()"""))
         }
         case _ => Seq.empty
       }
@@ -563,9 +573,21 @@ object TypeScript {
     if (code.useSingleQuotesElseDoubleQuotes) s"""'${str}'""" else s""""${str}""""
   }
 
+  def toTypescript(line: PartialCodeLine): String = {
+    line.code
+  }
+
+  def toTypescript2(line: Seq[PartialCodeLine]): String = {
+    (for (l <- line) yield l.code).mkString
+  }
+
+  def toTypescript3(line: Seq[CodeLine]): String = {
+    (for (l <- line) yield toTypescript2(l.line)).mkString
+  }
+
   /*
-  @todo Header should be generated from the codelines as used
-   */
+    @todo Header should be generated from the codelines as used
+     */
   def defaultHeader(code: CodeGenerationPreferences) = {
     s"""// https://github.com/emmanueltouzery/prelude-ts
        |// npm install --save prelude-ts
@@ -593,7 +615,7 @@ object TypeScript {
        |}
        |
        |function tail${code.listType()}<a>(param: ${code.listType()}<a>): ${code.listType()}<a> {
-       |  return param.tail().getOrElse(${emptyListInstance(code)})
+       |  return param.tail().getOrElse(${toTypescript(emptyListInstance(code))})
        |}
        |
        |""".stripMargin
@@ -669,7 +691,7 @@ object TypeScript {
             s"""${codeLinesToString(1, m)}
                |$methodDefAndImpl""".stripMargin
 
-          val function = s"""${functionDoc}
+          val function = s"""${toTypescript3(functionDoc)}
                             |export function ${value.methodDefinition.name}${parameterized}(${parametersStr.mkString(", ")}): ${idrisTypeToTypescriptType(code, parameterTypes.last, ft)}
              |{
              |${alsoAssert}
