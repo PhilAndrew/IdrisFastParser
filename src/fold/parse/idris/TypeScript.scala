@@ -4,6 +4,9 @@ import java.nio.file.{Files, Path}
 
 import fastparse.Parsed
 import fold.parse.idris.Grammar.{ArrayIdentifier, Bracketed, Extraction, Identifier, Method}
+import better.files._
+import File._
+import java.io.{File => JFile}
 
 object TypeScript {
 
@@ -21,7 +24,9 @@ object TypeScript {
                                        codeGenerationDebugComments: Boolean = false,
                                        useNodeJSLibraryOffensive: Boolean = true,
                                        useSingleQuotesElseDoubleQuotes: Boolean = true,
-                                       useTripleEqualsForIntegerComparisons: Boolean = true) {
+                                       useTripleEqualsForIntegerComparisons: Boolean = true,
+                                       generateNodeJSProject: Boolean = true,
+                                        outputPath: Option[String] = None) {
     def listType() = if (usePreludeTsVectorForList) "Vector" else if (usePreludeTsListForList) "LinkedList" else ""
   }
 
@@ -61,17 +66,17 @@ object TypeScript {
    */
   def idrisTypeToTypescriptType(preferences: CodeGenerationPreferences,
                                 idrisType: String,
-                                parameterizedType: String): String = {
+                                parameterizedType: String): PartialCodeLine = {
     idrisType match {
       case "List" => {
-        s"${preferences.listType()}<${parameterizedType}>"
+        PartialCodeLine(s"${preferences.listType()}<${parameterizedType}>")
       }
-      case "Bool" => "boolean"
-      case "Nat" => "number"
-      case "True" => "true"
-      case "False" => "false"
-      case "Type" => "string"
-      case _ => idrisType
+      case "Bool" => PartialCodeLine("boolean")
+      case "Nat" => PartialCodeLine("number")
+      case "True" => PartialCodeLine("true")
+      case "False" => PartialCodeLine("false")
+      case "Type" => PartialCodeLine("string")
+      case _ => PartialCodeLine(idrisType)
     }
   }
 
@@ -342,7 +347,8 @@ object TypeScript {
 
       val parameters = p.mkString(", ")
       if (isCapitalized(patternMatch.statement.methodCall.get.method.name))
-        Seq(defaultCodeLine(s"return ${idrisTypeToTypescriptType(code, patternMatch.statement.methodCall.get.method.name, ")")}"))
+        Seq(CodeLine(Seq(PartialCodeLine("return "),
+          idrisTypeToTypescriptType(code, patternMatch.statement.methodCall.get.method.name, ")"))))
       else {
         // If no parameters then it may be a scoped variable
         val scoped = getScopedVariable(codeEnvironment, patternMatch.statement.methodCall.get.method.name)
@@ -540,9 +546,9 @@ object TypeScript {
     }
   }
 
-  def generateLocalVariables(methodName: String, parameterNames: Seq[String], parameterTypes: Seq[String], parameterBinding: ParameterBinding): Seq[LocalVariable] = {
-    assert(parameterNames.size == parameterBinding.bindings.size)
-    for (n <- parameterNames.zip(parameterTypes).zip(parameterBinding.bindings).zipWithIndex) yield {
+  def generateLocalVariables(methodName: String, namesAndTypes: Seq[(String, String)], parameterBinding: ParameterBinding): Seq[LocalVariable] = {
+    //assert(parameterNames.size == parameterBinding.bindings.size)
+    for (n <- namesAndTypes.zip(parameterBinding.bindings).zipWithIndex) yield {
       LocalVariable(methodName, n._1._1._1, n._1._1._2, n._2, n._1._2.asInstanceOf[Binding].origionalName)
     }
   }
@@ -621,83 +627,142 @@ object TypeScript {
        |""".stripMargin
   }
 
+  def createNodeJSProject(code: CodeGenerationPreferences) = {
+    val projects = "." / "projects" / "nodejs"
+    projects.createDirectoryIfNotExists()
+
+    val readme = "." / "projects" / "nodejs" / "README.md"
+    readme.writeText("README")
+
+    val packageJson = """{
+                        |  "name": "generated",
+                        |  "version": "1.0.0",
+                        |  "description": "README",
+                        |  "main": "index.js",
+                        |  "scripts": {
+                        |    "test": "echo \"Error: no test specified\" && exit 1"
+                        |  },
+                        |  "author": "",
+                        |  "license": "ISC"
+                        |}
+                        |
+                        |""".stripMargin
+
+    val packageJsonFile = "." / "projects" / "nodejs" / "package.json"
+    packageJsonFile.writeText(packageJson)
+
+
+
+    //val file = "." / "test.txt" //root/"tmp"/"test.txt"
+    //file.overwrite("hello")
+    //file.appendLine().append("world")
+    //assert(file.contentAsString == "hello\nworld")
+  }
+
+  def stringToCodeLines(function: String): Seq[CodeLine] = {
+    function.split("\n").map { line => CodeLine(Seq(PartialCodeLine(line))) }
+  }
+
+  def something(code: CodeGenerationPreferences,
+                codeEnvironment: CodeEnvironment,
+               header: String,
+                test: Seq[CodeLine],
+                value: Method,
+                params: Seq[(String, String)],
+                ft: String,
+                parametersStr: Seq[String],
+                parameterTypes: Seq[String]): Seq[CodeLine] = {
+
+    // value
+    //val methodImpl = methodCall(codeEnvironment, code, value.patternMatch.head.methodCall)
+
+    // Find all method definitions
+    val methodDefs = for (p <- value.patternMatch) yield methodDefinition(p.methodImplWhere, code, codeEnvironment)
+    val methodDef = methodDefs.flatten.mkString("\n")
+
+    val functionDoc = docComments(code, params)
+
+    val parameterized = if (ft.trim.isEmpty) "" else s"<$ft>"
+
+    val paramNames = params.map(_._1)
+    val paramTypes = params.map(_._2)
+
+    val m = methodAssertions(code, paramNames, paramTypes)
+
+    val methodImpl = codeLinesToString(1, test)
+    val methodDefAndImpl = if (methodDef.trim.isEmpty) methodImpl else
+      s"""${methodDef}
+         |${methodImpl}""".mkString
+
+    val alsoAssert: String = if (m.isEmpty) methodDefAndImpl else
+      s"""${codeLinesToString(1, m)}
+         |$methodDefAndImpl""".stripMargin
+
+    val function = header + s"""${toTypescript3(functionDoc)}
+                      |export function ${value.methodDefinition.name}${parameterized}(${parametersStr.mkString(", ")}): ${idrisTypeToTypescriptType(code, parameterTypes.last, ft)}
+                      |{
+                      |${alsoAssert}
+                      |}""".stripMargin
+
+    stringToCodeLines(function)
+  }
+
+  def namesAndTypesOf(bindings: Seq[Binding], parameters: Seq[Grammar.MethodDefinitionParameter]): Seq[(String, String)] = {
+    bindings.map(_.localName).zip(parameters.map(_.param.name))
+  }
+
+  /*
+          val parameterNames = methodLineParameterBindings.head.bindings.map(b => {
+            b.localName
+          })
+          val parameterTypes: Seq[String] = for (p <- method.methodDefinition.parameters) yield (p.param.name)
+   */
+
   def toTypescriptAST(fileName: String,
                       idrisAst: Parsed[Grammar.ParsedFile],
                       code: CodeGenerationPreferences) = {
 
     idrisAst match {
-      case Parsed.Success(value2, index) => {
+      case Parsed.Success(parsedIdrisCode, index) => {
 
-        if (value2.method.isDefined) {
-          val value = value2.method.get
-          val methodLineParameterBindings = for (m <- value.patternMatch)
-            yield parameterBinding(value, m)
+        if (parsedIdrisCode.method.isDefined) {
+          val method = parsedIdrisCode.method.get
 
-          val parameterTypes = for (p <- value.methodDefinition.parameters) yield (p.param.name)
+          val methodLineParameterBindings = for (m <- method.patternMatch)
+            yield parameterBinding(method, m)
 
-          val methodLines = value.patternMatch.size
-          println(methodLines)
+          val parameterNamesAndTypes = namesAndTypesOf(methodLineParameterBindings.head.bindings, method.methodDefinition.parameters)
+
+          val codeEnvironment = CodeEnvironment(localVariablesFromMethodParameterScope =
+              generateLocalVariables(method.methodDefinition.name, parameterNamesAndTypes, methodLineParameterBindings(0)),
+            generationPreferences = code)
+
+          val methodCall = patternMatchesToCode(code, codeEnvironment, method)
 
           // In the case of multiple method lines then the variable names maybe different so we need to use
           // some common name
+          val parameterNamesFiltered = parameterNamesAndTypes.map(f => if (f._1.nonEmpty && f._1.head.isLower) Some(f) else None)
 
-          val parameterNames = methodLineParameterBindings.head.bindings.map(b => {
-            b.localName
-          }) //for (p <- value.methodLine.head.left.rest) yield (p.name.getOrElse(""))
+          val ft = functionTypeParameters(method)
 
-          val parameterNamesFiltered: Seq[Option[String]] = parameterNames.map((f) => {
-            if (f.size == 0) None else if (f.head.isUpper == false) Some(f) else None
-          })
+          val params = parameterNamesFiltered.flatten
 
-          val codeEnvironment = CodeEnvironment(localVariablesFromMethodParameterScope = generateLocalVariables(value.methodDefinition.name, parameterNames, parameterTypes, methodLineParameterBindings(0)),
-            generationPreferences = code)
-
-          val ft = functionTypeParameters(value)
-
-          val params = parameterNamesFiltered.zip(parameterTypes).map(f => {
-            if (f._1.isDefined) Some((f._1.get, f._2)) else None
-          }).flatten
-
-          val parametersStr = for (p <- params) yield (p._1 + ": " + idrisTypeToTypescriptType(code, p._2, ft))
+          val parametersStr: Seq[String] = for (p <- params) yield (p._1 + ": " + idrisTypeToTypescriptType(code, p._2, ft))
 
           val header = defaultHeader(code)
 
           //val methodChoices = patternMatchesToCodeForMainFunction(codeEnvironment, value)
+          val parameterTypes = params.map(_._2)
 
-          val test = patternMatchesToCode(code, codeEnvironment, value)
-          val methodImpl = codeLinesToString(1, test)
+          val codeGenerated: Seq[CodeLine] = something(code, codeEnvironment, header, methodCall, method, params, ft, parametersStr, parameterTypes)
 
-          // value
-          //val methodImpl = methodCall(codeEnvironment, code, value.patternMatch.head.methodCall)
+          // @todo At this point need codelines
 
-          // Find all method definitions
-          val methodDefs = for (p <- value.patternMatch) yield methodDefinition(p.methodImplWhere, code, codeEnvironment)
-          val methodDef = methodDefs.flatten.mkString("\n")
+          val output = codeLinesToString(0, codeGenerated)
 
-          val functionDoc = docComments(code, params)
+          // Generate project and files
 
-          val parameterized = if (ft.trim.isEmpty) "" else s"<$ft>"
-
-          val paramNames = params.map(_._1)
-          val paramTypes = params.map(_._2)
-
-          val m = methodAssertions(code, paramNames, paramTypes)
-
-          val methodDefAndImpl = if (methodDef.trim.isEmpty) methodImpl else
-          s"""${methodDef}
-          |${methodImpl}""".mkString
-
-          val alsoAssert: String = if (m.isEmpty) methodDefAndImpl else
-            s"""${codeLinesToString(1, m)}
-               |$methodDefAndImpl""".stripMargin
-
-          val function = s"""${toTypescript3(functionDoc)}
-                            |export function ${value.methodDefinition.name}${parameterized}(${parametersStr.mkString(", ")}): ${idrisTypeToTypescriptType(code, parameterTypes.last, ft)}
-             |{
-             |${alsoAssert}
-             |}""".stripMargin
-
-          val output = header + function
+          createNodeJSProject(code)
 
           Files.writeString(Path.of("typescript/src/test/" + fileName), output)
 
