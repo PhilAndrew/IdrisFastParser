@@ -8,6 +8,8 @@ import better.files._
 import File._
 import java.io.{File => JFile}
 
+import scala.collection.IterableOnce.iterableOnceExtensionMethods
+
 object TypeScript {
 
   case class BracketedBinding(origional: Seq[String], // Assume ["S", "k"] which is (S k)
@@ -179,39 +181,48 @@ object TypeScript {
 
   def emptyCodeLine() = defaultCodeLine("")
 
+  def partialCodeLineMkString(conditions: Seq[PartialCodeLine], start: String, join: String, end: String): Seq[PartialCodeLine] = {
+    if (conditions.size == 1) {
+      PartialCodeLine(start) +: conditions :+ PartialCodeLine(end)
+    } else {
+      val param2: Seq[PartialCodeLine] = conditions.foldLeft(Seq(PartialCodeLine(start)))(
+        (a: Seq[PartialCodeLine], b: PartialCodeLine) => {
+          a ++ Seq(PartialCodeLine(join)) ++ Seq(b)
+        })
+      PartialCodeLine(start) +: param2 :+ PartialCodeLine(end)
+    }
+  }
+
   def buildPatternMatchCondition(code: CodeGenerationPreferences,
                                  codeEnvironment: CodeEnvironment,
                                  patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
-    val lines: Seq[Option[String]] = for (rr <- patternMatch.left.rest.zipWithIndex) yield {
+    val lines: Seq[Seq[PartialCodeLine]] = for (rr <- patternMatch.left.rest.zipWithIndex) yield {
       val r = rr._1.name
-      if (r.isDefined) {
+      val x: Seq[PartialCodeLine] = if (r.isDefined) {
         val param = s"${patternMatch.left.methodName.name}Param${rr._2 + 1}"
         if (r.get == "[]")
-          Some(s"(${param}.isEmpty())")
+          Seq(PartialCodeLine(s"${param}.isEmpty()"))
         else
           if (r.get == "Z")
-            Some("(" + integerComparison(code, param, 0) + ")")
+            Seq(integerComparison(code, param, 0))
           else
             if (r.get == "True")
-              Some(s"(${param} === true)")
+              Seq(PartialCodeLine(s"${param} === true"))
             else
               if (r.get == "False")
-                Some(s"(${param} === false)")
+                Seq(PartialCodeLine(s"${param} === false"))
               else
-                None
-      } else None
+                Seq.empty
+      } else Seq.empty
+      x
     }
 
-    val conditions: Seq[String] = lines.flatten
+    val conditions: Seq[PartialCodeLine] = lines.flatten
     if (conditions.isEmpty) Seq.empty //Seq(CodeLine("{"))
-    else Seq(defaultCodeLine(s"if ${
-      if (conditions.size == 1) {
-        conditions.head
-      } else {
-        conditions.mkString("(", " && ", ")")
-      }
-    } {"))
+    else Seq(CodeLine(Seq(PartialCodeLine("if ")) ++ {
+        partialCodeLineMkString(conditions, "(", " && ", ") {")
+      }))
 
 
     /*if (patternMatch.methodImplWhere.isDefined) {
@@ -492,14 +503,21 @@ object TypeScript {
     result.flatten.toSeq
   }
 
-  def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment): Option[String] = {
+  def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment): Option[Seq[CodeLine]] = {
     if (methodImplWhere.isDefined) {
       val last = methodImplWhere.get.methodDefinition.parameters.last
       val r = methodImplWhere.get.methodDefinition.parameters.dropRight(1)
       val paramTypes = for (p <- r) yield p.param.name
       val ft = "a"
       val paramNames = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${methodImplWhere.get.methodDefinition.name}Param${t._2 + 1}")
-      val param = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${paramNames(t._2)}: ${idrisTypeToTypescriptType(code, t._1, ft)}").mkString(", ")
+      val param1: Seq[Seq[PartialCodeLine]] = paramTypes.zipWithIndex.map((t: (String, Int)) => Seq(PartialCodeLine(s"${paramNames(t._2)}: "),
+        idrisTypeToTypescriptType(code, t._1, ft)))
+
+      val param2: Seq[PartialCodeLine] = param1.foldLeft(Seq[PartialCodeLine]())(
+        (a: Seq[PartialCodeLine], b: Seq[PartialCodeLine]) => {
+          if (a.isEmpty) b else
+          a ++ Seq(PartialCodeLine(", ")) ++ b
+        })
 
       val methodBody: String = (for (p <- methodImplWhere.get.patternMatch) yield {
         p.toString
@@ -511,13 +529,17 @@ object TypeScript {
 
       val pat = patternMatchesToCode(code, c, methodImplWhere.get)
 
-      val what2 = codeLinesToString(2, a ++ pat)
+      //val what2 = codeLinesToString(2, a ++ pat)
 
       // @todo The function is parameterized by <${ft}> but I deleted that to make it work
-      Some(s"""
-         |  function ${methodImplWhere.get.methodDefinition.name}($param): ${idrisTypeToTypescriptType(code, last.param.name, ft)} {
-         |${what2}
-         |  }""".stripMargin)
+      val result: Seq[CodeLine] = Seq(defaultCodeLine(""),
+      CodeLine(Seq(PartialCodeLine(s"function ${methodImplWhere.get.methodDefinition.name}(")) ++
+        param2 ++
+        Seq(PartialCodeLine("): "),
+        idrisTypeToTypescriptType(code, last.param.name, ft), PartialCodeLine(" {")))) ++
+        (a ++ pat) ++ Seq(defaultCodeLine("}"))
+
+      Some(result)
     } else None
   }
 
@@ -670,15 +692,17 @@ object TypeScript {
                 value: Method,
                 params: Seq[(String, String)],
                 ft: String,
-                parametersStr: Seq[String],
+                parametersStr: Seq[PartialCodeLine],
                 parameterTypes: Seq[String]): Seq[CodeLine] = {
 
     // value
     //val methodImpl = methodCall(codeEnvironment, code, value.patternMatch.head.methodCall)
 
     // Find all method definitions
-    val methodDefs = for (p <- value.patternMatch) yield methodDefinition(p.methodImplWhere, code, codeEnvironment)
-    val methodDef = methodDefs.flatten.mkString("\n")
+    val methodDefs1: Seq[Option[Seq[CodeLine]]] = (for (p <- value.patternMatch) yield methodDefinition(p.methodImplWhere, code, codeEnvironment))
+
+    val methodDefs: Seq[CodeLine] = methodDefs1.flatten.flatten
+    //val methodDef = methodDefs.flatten.mkString("\n")
 
     val functionDoc = docComments(code, params)
 
@@ -689,22 +713,25 @@ object TypeScript {
 
     val m = methodAssertions(code, paramNames, paramTypes)
 
-    val methodImpl = codeLinesToString(1, test)
-    val methodDefAndImpl = if (methodDef.trim.isEmpty) methodImpl else
-      s"""${methodDef}
-         |${methodImpl}""".mkString
+    //val methodImpl = codeLinesToString(1, test)
+    val methodDefAndImpl = if (methodDefs.isEmpty) test else methodDefs ++ test
 
-    val alsoAssert: String = if (m.isEmpty) methodDefAndImpl else
-      s"""${codeLinesToString(1, m)}
-         |$methodDefAndImpl""".stripMargin
+    val alsoAssert: Seq[CodeLine] = if (m.isEmpty) methodDefAndImpl else {
+      m ++ methodDefAndImpl
+    }
 
-    val function = header + s"""${toTypescript3(functionDoc)}
-                      |export function ${value.methodDefinition.name}${parameterized}(${parametersStr.mkString(", ")}): ${idrisTypeToTypescriptType(code, parameterTypes.last, ft)}
-                      |{
-                      |${alsoAssert}
-                      |}""".stripMargin
+    val headerCodeLines = stringToCodeLines(header)
+    // functionDoc
+    val functionCodeLines: Seq[CodeLine] = Seq(
+      CodeLine(
+        Seq(PartialCodeLine(s"export function ${value.methodDefinition.name}${parameterized}(")) ++ parametersStr ++ Seq(PartialCodeLine("): ")) ++
+            Seq(idrisTypeToTypescriptType(code, parameterTypes.last, ft))),
+    defaultCodeLine("{")) ++
+      alsoAssert ++ Seq(
+    defaultCodeLine("}"))
 
-    stringToCodeLines(function)
+    val function: Seq[CodeLine] = headerCodeLines ++ functionDoc ++ functionCodeLines
+    function
   }
 
   def namesAndTypesOf(bindings: Seq[Binding], parameters: Seq[Grammar.MethodDefinitionParameter]): Seq[(String, String)] = {
@@ -747,12 +774,12 @@ object TypeScript {
 
           val params = parameterNamesFiltered.flatten
 
-          val parametersStr: Seq[String] = for (p <- params) yield (p._1 + ": " + idrisTypeToTypescriptType(code, p._2, ft))
+          val parametersStr: Seq[PartialCodeLine] = (for (p <- params) yield (Seq(PartialCodeLine(p._1 + ": "), idrisTypeToTypescriptType(code, p._2, ft)))).flatten
 
           val header = defaultHeader(code)
 
           //val methodChoices = patternMatchesToCodeForMainFunction(codeEnvironment, value)
-          val parameterTypes = params.map(_._2)
+          val parameterTypes = method.methodDefinition.parameters.map(_.param.name)
 
           val codeGenerated: Seq[CodeLine] = something(code, codeEnvironment, header, methodCall, method, params, ft, parametersStr, parameterTypes)
 

@@ -95,7 +95,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  //testPlus
+  testPlus
 
   println()
   def testEventOdd = {
