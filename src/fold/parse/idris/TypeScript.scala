@@ -491,7 +491,7 @@ object TypeScript {
   }
 
   def methodAssertions(code: CodeGenerationPreferences, paramNames: Seq[String], paramTypes: Seq[String]): Seq[CodeLine] = {
-    val result = for (p <- paramNames.zip(paramTypes)) yield {
+    val result1 = for (p <- paramNames.zip(paramTypes)) yield {
       p._2 match {
         case "Nat" => {
           Seq(codeLineAssert(code, s"""check(${p._1}, ${quoteString(code, p._1)}).is.anInteger()"""),
@@ -500,7 +500,8 @@ object TypeScript {
         case _ => Seq.empty
       }
     }
-    result.flatten.toSeq
+    val result2 = result1.flatten.toSeq
+    if (result2.size > 0) result2 ++ Seq(defaultCodeLine("")) else result2
   }
 
   def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment): Option[Seq[CodeLine]] = {
@@ -531,13 +532,15 @@ object TypeScript {
 
       //val what2 = codeLinesToString(2, a ++ pat)
 
+      val m = indent(a ++ pat)
+
       // @todo The function is parameterized by <${ft}> but I deleted that to make it work
-      val result: Seq[CodeLine] = Seq(defaultCodeLine(""),
+      val result: Seq[CodeLine] = Seq(
       CodeLine(Seq(PartialCodeLine(s"function ${methodImplWhere.get.methodDefinition.name}(")) ++
         param2 ++
         Seq(PartialCodeLine("): "),
         idrisTypeToTypescriptType(code, last.param.name, ft), PartialCodeLine(" {")))) ++
-        (a ++ pat) ++ Seq(defaultCodeLine("}"))
+        m ++ Seq(defaultCodeLine("}"))
 
       Some(result)
     } else None
@@ -685,9 +688,13 @@ object TypeScript {
     function.split("\n").map { line => CodeLine(Seq(PartialCodeLine(line))) }
   }
 
+  def indent(code: Seq[CodeLine]): Seq[CodeLine] = {
+    for (c <- code) yield c.copy(indentLevel = c.indentLevel + 1)
+  }
+
   def something(code: CodeGenerationPreferences,
                 codeEnvironment: CodeEnvironment,
-               header: String,
+                header: String,
                 test: Seq[CodeLine],
                 value: Method,
                 params: Seq[(String, String)],
@@ -716,7 +723,9 @@ object TypeScript {
     //val methodImpl = codeLinesToString(1, test)
     val methodDefAndImpl = if (methodDefs.isEmpty) test else methodDefs ++ test
 
-    val alsoAssert: Seq[CodeLine] = if (m.isEmpty) methodDefAndImpl else {
+    val alsoAssert: Seq[CodeLine] = if (m.isEmpty) {
+      methodDefAndImpl
+    } else {
       m ++ methodDefAndImpl
     }
 
@@ -727,8 +736,7 @@ object TypeScript {
         Seq(PartialCodeLine(s"export function ${value.methodDefinition.name}${parameterized}(")) ++ parametersStr ++ Seq(PartialCodeLine("): ")) ++
             Seq(idrisTypeToTypescriptType(code, parameterTypes.last, ft))),
     defaultCodeLine("{")) ++
-      alsoAssert ++ Seq(
-    defaultCodeLine("}"))
+      indent(alsoAssert) ++ Seq(defaultCodeLine("}"))
 
     val function: Seq[CodeLine] = headerCodeLines ++ functionDoc ++ functionCodeLines
     function
