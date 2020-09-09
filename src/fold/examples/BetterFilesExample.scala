@@ -1,8 +1,6 @@
-package fold.parse.idris
+package fold.examples
 
 import better.files._
-import File._
-import java.io.{File => JFile}
 
 object BetterFilesExample extends App {
 

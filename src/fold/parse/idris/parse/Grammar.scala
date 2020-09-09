@@ -1,10 +1,10 @@
-package fold.parse.idris
+package fold.parse.idris.parse
 
-import fastparse.NoWhitespace._
-import fastparse.{P, Parsed}
+import fold.parse.idris.parse.Lexical
 
 object Grammar {
 
+  import fastparse.NoWhitespace._
   import fastparse._
 
   /*trait Identifier {
@@ -107,7 +107,7 @@ object Grammar {
       }
     }
   }) ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide ~
-     P(&(space ~ "where") ~ space ~ methodImplWhere).? )
+    P(&(space ~ "where") ~ space ~ methodImplWhere).? )
     .map(f => {
       MethodLine(f._1, f._2, f._3)
     })
@@ -163,13 +163,13 @@ object Grammar {
   def patternMatchRightSide[_: P] = P(dataValue | methodCall)
 
   def patternMatch[_: P]: P[MethodLine] = methodImpl
-    /*
-    P(Lexical.identifier ~ patternMatchIdentifiers ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide).map(f => {
-    $$$$
-    MethodLine2(f._1, f._2, f._3)
-  }).log(*/
-//  def patternMatchIdentifiers[_: P] = patternMatchIdentifier.rep
-//  def patternMatchIdentifier[_: P] = P(space ~ !("=") ~ P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch))
+  /*
+  P(Lexical.identifier ~ patternMatchIdentifiers ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide).map(f => {
+  $$$$
+  MethodLine2(f._1, f._2, f._3)
+}).log(*/
+  //  def patternMatchIdentifiers[_: P] = patternMatchIdentifier.rep
+  //  def patternMatchIdentifier[_: P] = P(space ~ !("=") ~ P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch))
 
   def arrayPatternMatch[_: P] = emptyArray
   def listPatternMatch[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ ")")

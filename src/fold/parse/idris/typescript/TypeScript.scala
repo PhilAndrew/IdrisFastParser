@@ -1,42 +1,27 @@
-package fold.parse.idris
+package fold.parse.idris.typescript
 
 import java.nio.file.{Files, Path}
 
 import fastparse.Parsed
-import fold.parse.idris.Grammar.{ArrayIdentifier, Bracketed, Extraction, Identifier, Method}
-import better.files._
-import File._
-import java.io.{File => JFile}
-
-import scala.collection.IterableOnce.iterableOnceExtensionMethods
+import fold.parse.idris.parse.Grammar._
+import fold.parse.idris.parse.Grammar
 
 object TypeScript {
 
   case class BracketedBinding(origional: Seq[String], // Assume ["S", "k"] which is (S k)
-                             name: String,            // Assume "k" as any place this name is found we are referring to this backeted binding
-                             substitution: String     // Assume "k-1" to substitute into this place
+                              name: String, // Assume "k" as any place this name is found we are referring to this backeted binding
+                              substitution: String // Assume "k-1" to substitute into this place
                              )
+
   case class Binding(localName: String, origionalName: Option[String], typeOf: String, bracketedBinding: Option[BracketedBinding]) // @todo bracketedBinding set to None
   case class ParameterBinding(bindings: Seq[Binding])
 
-  case class CodeGenerationPreferences(usePreludeTs: Boolean = true,
-                                       usePreludeTsVectorForList: Boolean = true,
-                                       usePreludeTsListForList: Boolean = false,
-                                       placeFunctionsIntoClasses: Boolean = false,
-                                       codeGenerationDebugComments: Boolean = false,
-                                       useNodeJSLibraryOffensive: Boolean = true,
-                                       useSingleQuotesElseDoubleQuotes: Boolean = true,
-                                       useTripleEqualsForIntegerComparisons: Boolean = true,
-                                       generateNodeJSProject: Boolean = true,
-                                        outputPath: Option[String] = None) {
-    def listType() = if (usePreludeTsVectorForList) "Vector" else if (usePreludeTsListForList) "LinkedList" else ""
-  }
 
   case class LocalVariable(methodName: String, variableName: String, typeOf: String, indexInMethod: Int, variableAlias: Option[String])
 
   case class CodeEnvironment(scopedVariablePrefix: Option[String] = None,
                              localVariablesFromMethodParameterScope: Seq[LocalVariable] = Seq.empty,
-                             generationPreferences: CodeGenerationPreferences = CodeGenerationPreferences())
+                             generationPreferences: Preferences.CodeGenerationPreferences = Preferences.CodeGenerationPreferences())
 
   // For example
   // winston
@@ -46,76 +31,25 @@ object TypeScript {
   case class NodeJsLibrary(name: String, url: String, npmInstall: String, imports: Seq[String])
 
   case class PartialCodeLine(code: String, nodeJsLibraryUsage: Seq[NodeJsLibrary] = Seq.empty)
+
   case class CodeLine(line: Seq[PartialCodeLine], indentLevel: Int = 0, nodeJsLibraryUsage: Seq[NodeJsLibrary] = Seq.empty)
 
-  val preludeTsVectorForList = NodeJsLibrary("Vector", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("import Vector from 'prelude-ts'"))
-  val preludeTsListForList = NodeJsLibrary("LinkedList", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("import LinkedList from 'prelude-ts'"))
+  val preludeTsVectorForList = NodeJsLibrary("Vector", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("import { Vector } from 'prelude-ts'"))
+  val preludeTsListForList = NodeJsLibrary("LinkedList", "https://github.com/emmanueltouzery/prelude-ts", "prelude-ts", Seq("import { LinkedList } from 'prelude-ts'"))
   val assertNodeJsLibrary = NodeJsLibrary("Offensive", "https://www.npmjs.com/package/offensive", "offensive",
     Seq("import 'offensive/assertions/length'",
-    "import 'offensive/assertions/anInteger'",
-    "import 'offensive/assertions/greaterThanOrEqualTo'",
-    "import check from 'offensive'"))
+      "import 'offensive/assertions/anInteger'",
+      "import 'offensive/assertions/greaterThanOrEqualTo'",
+      "import check from 'offensive'"))
 
   // Use linked list
   // https://github.com/immutable-js/immutable-js
-
-  /**
-   * Converts an Idris type to an equivalent Typescript type
-   * @param preferences
-   * @param idrisType
-   * @param parameterizedType
-   * @return
-   */
-  def idrisTypeToTypescriptType(preferences: CodeGenerationPreferences,
-                                idrisType: String,
-                                parameterizedType: String): PartialCodeLine = {
-    idrisType match {
-      case "List" => {
-        PartialCodeLine(s"${preferences.listType()}<${parameterizedType}>")
-      }
-      case "Bool" => PartialCodeLine("boolean")
-      case "Nat" => PartialCodeLine("number")
-      case "True" => PartialCodeLine("true")
-      case "False" => PartialCodeLine("false")
-      case "Type" => PartialCodeLine("string")
-      case _ => PartialCodeLine(idrisType)
-    }
-  }
-
-  def constantOf(name: String): Option[String] = {
-    if (name.equals("True"))
-      Some("true")
-    else if (name.equals("False"))
-      Some("false")
-    else None
-  }
-
-  def emptyListInstance(preferences: CodeGenerationPreferences): PartialCodeLine = {
-    if (preferences.usePreludeTs) {
-      if (preferences.usePreludeTsVectorForList)
-        PartialCodeLine("Vector.of()", Seq(preludeTsVectorForList))
-      else if (preferences.usePreludeTsListForList)
-        PartialCodeLine("LinkedList.of()", Seq(preludeTsListForList))
-      else // @todo Handle this case
-        PartialCodeLine("LinkedList.of()", Seq(preludeTsListForList))
-    } else {
-      // @todo Handle this case
-      PartialCodeLine("LinkedList.of()", Seq(preludeTsListForList))
-    }
-  }
 
   def defaultCodeLine(line: String): CodeLine = {
     CodeLine(Seq(PartialCodeLine(line)))
   }
 
-  def isCapitalized(name: String): Boolean = {
-    if (name.size == 0)
-      false
-    else
-      name.head.isUpper
-  }
-
-  def nodeJsLibraryOf(preferences: CodeGenerationPreferences): Seq[NodeJsLibrary] = {
+  def nodeJsLibraryOf(preferences: Preferences.CodeGenerationPreferences): Seq[NodeJsLibrary] = {
     if (preferences.usePreludeTsListForList)
       Seq(preludeTsListForList)
     else
@@ -126,7 +60,7 @@ object TypeScript {
     Seq(PartialCodeLine(str))
   }
 
-  def buildExtractor(preferences: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
+  def buildExtractor(preferences: Preferences.CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
     (for (r <- patternMatch.left.rest.zipWithIndex) yield {
       if (r._1.extractionForm.isDefined) {
         val e = r._1.extractionForm.get
@@ -137,7 +71,7 @@ object TypeScript {
       } else if (r._1.bracketedForm.isDefined) {
         val b: Bracketed = r._1.bracketedForm.get
         if (b.first.name == "S") { // Assume (S k)
-          Seq(defaultCodeLine(s"const k = ${patternMatch.left.methodName.name}Param${r._2+1} - 1"))
+          Seq(defaultCodeLine(s"const k = ${patternMatch.left.methodName.name}Param${r._2 + 1} - 1"))
         } else
           Seq.empty[CodeLine]
       } else {
@@ -172,13 +106,6 @@ object TypeScript {
     }).flatten
   }
 
-  def codeLinesToString(indent: Int, lines: Seq[CodeLine]): String = {
-    val i = if (lines.size == 1) indent -1 else indent
-    (for (l <- lines) yield {
-      "  ".repeat(i + l.indentLevel).mkString + toTypescript2(l.line)
-    }).mkString("\n")
-  }
-
   def emptyCodeLine() = defaultCodeLine("")
 
   def partialCodeLineMkString(conditions: Seq[PartialCodeLine], start: String, join: String, end: String): Seq[PartialCodeLine] = {
@@ -193,7 +120,7 @@ object TypeScript {
     }
   }
 
-  def buildPatternMatchCondition(code: CodeGenerationPreferences,
+  def buildPatternMatchCondition(code: Preferences.CodeGenerationPreferences,
                                  codeEnvironment: CodeEnvironment,
                                  patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
@@ -203,17 +130,14 @@ object TypeScript {
         val param = s"${patternMatch.left.methodName.name}Param${rr._2 + 1}"
         if (r.get == "[]")
           Seq(PartialCodeLine(s"${param}.isEmpty()"))
+        else if (r.get == "Z")
+          Seq(integerComparison(code, param, 0))
+        else if (r.get == "True")
+          Seq(PartialCodeLine(s"${param} === true"))
+        else if (r.get == "False")
+          Seq(PartialCodeLine(s"${param} === false"))
         else
-          if (r.get == "Z")
-            Seq(integerComparison(code, param, 0))
-          else
-            if (r.get == "True")
-              Seq(PartialCodeLine(s"${param} === true"))
-            else
-              if (r.get == "False")
-                Seq(PartialCodeLine(s"${param} === false"))
-              else
-                Seq.empty
+          Seq.empty
       } else Seq.empty
       x
     }
@@ -221,8 +145,8 @@ object TypeScript {
     val conditions: Seq[PartialCodeLine] = lines.flatten
     if (conditions.isEmpty) Seq.empty //Seq(CodeLine("{"))
     else Seq(CodeLine(Seq(PartialCodeLine("if ")) ++ {
-        partialCodeLineMkString(conditions, "(", " && ", ") {")
-      }))
+      partialCodeLineMkString(conditions, "(", " && ", ") {")
+    }))
 
 
     /*if (patternMatch.methodImplWhere.isDefined) {
@@ -254,20 +178,12 @@ object TypeScript {
   }
 
 
-
-
   // 100% LINE -----------------------------------------------------------------------------------------
-
-
-
-
-
-
 
 
   def functionTypeParameters(value: Grammar.Method) = {
     if (value.methodDefinition.parameters.head.rest.isEmpty) "" else
-    s"${value.methodDefinition.parameters.head.rest.head.name}"
+      s"${value.methodDefinition.parameters.head.rest.head.name}"
   }
 
   def prefix(codeEnvironment: CodeEnvironment, name: String) = {
@@ -277,7 +193,7 @@ object TypeScript {
       name
   }
 
-  def integerComparison(code: CodeGenerationPreferences, param: String, compareToken: Int): PartialCodeLine = {
+  def integerComparison(code: Preferences.CodeGenerationPreferences, param: String, compareToken: Int): PartialCodeLine = {
     if (code.useTripleEqualsForIntegerComparisons)
       PartialCodeLine(s"${param} === ${compareToken.toString}")
     else
@@ -310,12 +226,12 @@ object TypeScript {
     codeEnvironment.localVariablesFromMethodParameterScope.find(_.variableAlias.contains(name))
   }
 
-  def buildCode(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
+  def buildCode(code: Preferences.CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
     val c2 = updateCodeEnvironment(codeEnvironment, patternMatch)
 
     def la(i: Identifier) = {
-      if (isCapitalized(i.name)) {
+      if (StringOps.isCapitalized(i.name)) {
         i.name
       } else {
         localVariable(c2, declaredIdentifier(c2, i.name)).getOrElse(i.name)
@@ -326,13 +242,12 @@ object TypeScript {
       val r = (for (i <- patternMatch.statement.dataValue.get.rest) yield i.name).mkString(" ")
       val i = if (r.size > 0) " " + r else ""
 
-      val c = constantOf(patternMatch.statement.dataValue.get.name.name)
+      val c = DefaultTypes.constantOf(patternMatch.statement.dataValue.get.name.name)
       if (c.isDefined)
         Seq(defaultCodeLine(s"""return ${c.get}"""))
       else
         Seq(defaultCodeLine(s"""return "${patternMatch.statement.dataValue.get.name.name}$i""""))
-    } else
-    if ((patternMatch.statement.methodCall.isDefined) && (patternMatch.statement.methodCall.get.isReferenceNotMethodCall))
+    } else if ((patternMatch.statement.methodCall.isDefined) && (patternMatch.statement.methodCall.get.isReferenceNotMethodCall))
       Seq(defaultCodeLine(s"return ${localVariable(c2, patternMatch.statement.methodCall.get.method.name).get}"))
     else {
       val p = for (p <- patternMatch.statement.methodCall.get.parameter) yield {
@@ -346,7 +261,7 @@ object TypeScript {
           }
           case a: ArrayIdentifier => {
             if (a.isEmpty)
-              toTypescript(emptyListInstance(code))
+              toTypescript(DefaultTypes.emptyListInstance(code))
             else {
               throw new Exception("Error")
               ""
@@ -357,9 +272,9 @@ object TypeScript {
       }
 
       val parameters = p.mkString(", ")
-      if (isCapitalized(patternMatch.statement.methodCall.get.method.name))
+      if (StringOps.isCapitalized(patternMatch.statement.methodCall.get.method.name))
         Seq(CodeLine(Seq(PartialCodeLine("return "),
-          idrisTypeToTypescriptType(code, patternMatch.statement.methodCall.get.method.name, ")"))))
+          TypeConversion.idrisTypeToTypescriptType(code, patternMatch.statement.methodCall.get.method.name, ")"))))
       else {
         // If no parameters then it may be a scoped variable
         val scoped = getScopedVariable(codeEnvironment, patternMatch.statement.methodCall.get.method.name)
@@ -401,7 +316,7 @@ object TypeScript {
       }
 
       val addLocalVariables = (for (p <- params.zipWithIndex) yield {
-        val prefix = s"${patternMatch.left.methodName.name}Param${p._2+1}"
+        val prefix = s"${patternMatch.left.methodName.name}Param${p._2 + 1}"
         if (p._1.isDefined)
           Some(LocalVariable(methodName = patternMatch.left.methodName.name, variableName = prefix, typeOf = "unknown", indexInMethod = p._2, variableAlias = p._1))
         else
@@ -424,13 +339,13 @@ object TypeScript {
       } else None
     }
 
-    val flat : Seq[LocalVariable] = found.flatten.flatten
+    val flat: Seq[LocalVariable] = found.flatten.flatten
 
     codeEnvironmentNested.copy(localVariablesFromMethodParameterScope = flat ++ codeEnvironmentNested.localVariablesFromMethodParameterScope)
   }
 
   // @todo Merge the next two functions
-  def patternMatchesToCode(code: CodeGenerationPreferences, codeEnvironment: CodeEnvironment, method: Grammar.Method): Seq[CodeLine] = {
+  def patternMatchesToCode(code: Preferences.CodeGenerationPreferences, codeEnvironment: CodeEnvironment, method: Grammar.Method): Seq[CodeLine] = {
 
     val what = for (m <- method.patternMatch.zipWithIndex) yield {
 
@@ -460,7 +375,7 @@ object TypeScript {
       }
 
       val result = if (codeEnvironmentExtractor.generationPreferences.codeGenerationDebugComments) {
-        defaultCodeLine(s"// Pattern matching function ${m._2+1}") +: joined
+        defaultCodeLine(s"// Pattern matching function ${m._2 + 1}") +: joined
       } else joined
 
       if (p.isEmpty) result else result ++ Seq(defaultCodeLine("}"))
@@ -485,26 +400,7 @@ object TypeScript {
     deGrouped
   }
 
-
-  def codeLineAssert(code: CodeGenerationPreferences, c: String): CodeLine = {
-    CodeLine(partialCodeLine(c), 0, nodeJsLibraryOf(code))
-  }
-
-  def methodAssertions(code: CodeGenerationPreferences, paramNames: Seq[String], paramTypes: Seq[String]): Seq[CodeLine] = {
-    val result1 = for (p <- paramNames.zip(paramTypes)) yield {
-      p._2 match {
-        case "Nat" => {
-          Seq(codeLineAssert(code, s"""check(${p._1}, ${quoteString(code, p._1)}).is.anInteger()"""),
-            codeLineAssert(code, s"""check(${p._1}, ${quoteString(code, p._1)}).is.greaterThanOrEqualTo(0)()"""))
-        }
-        case _ => Seq.empty
-      }
-    }
-    val result2 = result1.flatten.toSeq
-    if (result2.size > 0) result2 ++ Seq(defaultCodeLine("")) else result2
-  }
-
-  def methodDefinition(methodImplWhere: Option[Grammar.Method], code: CodeGenerationPreferences, c: CodeEnvironment): Option[Seq[CodeLine]] = {
+  def methodDefinition(methodImplWhere: Option[Grammar.Method], code: Preferences.CodeGenerationPreferences, c: CodeEnvironment): Option[Seq[CodeLine]] = {
     if (methodImplWhere.isDefined) {
       val last = methodImplWhere.get.methodDefinition.parameters.last
       val r = methodImplWhere.get.methodDefinition.parameters.dropRight(1)
@@ -512,54 +408,52 @@ object TypeScript {
       val ft = "a"
       val paramNames = paramTypes.zipWithIndex.map((t: (String, Int)) => s"${methodImplWhere.get.methodDefinition.name}Param${t._2 + 1}")
       val param1: Seq[Seq[PartialCodeLine]] = paramTypes.zipWithIndex.map((t: (String, Int)) => Seq(PartialCodeLine(s"${paramNames(t._2)}: "),
-        idrisTypeToTypescriptType(code, t._1, ft)))
+        TypeConversion.idrisTypeToTypescriptType(code, t._1, ft)))
 
       val param2: Seq[PartialCodeLine] = param1.foldLeft(Seq[PartialCodeLine]())(
         (a: Seq[PartialCodeLine], b: Seq[PartialCodeLine]) => {
           if (a.isEmpty) b else
-          a ++ Seq(PartialCodeLine(", ")) ++ b
+            a ++ Seq(PartialCodeLine(", ")) ++ b
         })
 
       val methodBody: String = (for (p <- methodImplWhere.get.patternMatch) yield {
         p.toString
       }).mkString("\n")
 
-//      val what = methodImplWhere.get.patternMatch(1).rest.toString
+      //      val what = methodImplWhere.get.patternMatch(1).rest.toString
 
-      val a: Seq[CodeLine] = methodAssertions(code, paramNames, paramTypes)
+      val a: Seq[CodeLine] = Templates.methodAssertions(code, paramNames, paramTypes)
 
       val pat = patternMatchesToCode(code, c, methodImplWhere.get)
 
       //val what2 = codeLinesToString(2, a ++ pat)
 
-      val m = indent(a ++ pat)
+      val m = CodeFormatting.increaseIndentOfCodeByOneLevel(a ++ pat)
 
       // @todo The function is parameterized by <${ft}> but I deleted that to make it work
       val result: Seq[CodeLine] = Seq(
-      CodeLine(Seq(PartialCodeLine(s"function ${methodImplWhere.get.methodDefinition.name}(")) ++
-        param2 ++
-        Seq(PartialCodeLine("): "),
-        idrisTypeToTypescriptType(code, last.param.name, ft), PartialCodeLine(" {")))) ++
+        CodeLine(Seq(PartialCodeLine(s"function ${methodImplWhere.get.methodDefinition.name}(")) ++
+          param2 ++
+          Seq(PartialCodeLine("): "),
+            TypeConversion.idrisTypeToTypescriptType(code, last.param.name, ft), PartialCodeLine(" {")))) ++
         m ++ Seq(defaultCodeLine("}"))
 
       Some(result)
     } else None
   }
 
-  def stringLinesToCodeLines(stripMargin: String): Seq[CodeLine] = {
-    for (l <- stripMargin.split("\n").toSeq) yield defaultCodeLine(l)
-  }
-
-  def docComments(code: CodeGenerationPreferences, params: Seq[(String, String)]): Seq[CodeLine] = {
+  def docComments(code: Preferences.CodeGenerationPreferences, params: Seq[(String, String)]): Seq[CodeLine] = {
     val codeLines = (for (p <- params.zipWithIndex) yield {
-      defaultCodeLine(s"* @param ${p._1._1} ${idrisTypeToTypescriptType(code, p._1._2, "a")} ?")
+      defaultCodeLine(s"* @param ${p._1._1} ${TypeConversion.idrisTypeToTypescriptType(code, p._1._2, "a")} ?")
     }) :+ defaultCodeLine(s"* @returns ?")
 
-    val parameterJsDoc = codeLinesToString(0, codeLines)
+    val parameterJsDoc = CodeFormatting.codeLinesToString(0, codeLines)
 
-    stringLinesToCodeLines(s"""/**
-     |* ?
-     |${parameterJsDoc}
+    CodeFormatting.stringLinesToCodeLines(
+      s"""/**
+         |* ?
+         |${parameterJsDoc}
+
      |*/""".stripMargin)
   }
 
@@ -600,9 +494,7 @@ object TypeScript {
     ParameterBinding(bindings)
   }
 
-  def quoteString(code: CodeGenerationPreferences, str: String) = {
-    if (code.useSingleQuotesElseDoubleQuotes) s"""'${str}'""" else s""""${str}""""
-  }
+
 
   def toTypescript(line: PartialCodeLine): String = {
     line.code
@@ -616,61 +508,39 @@ object TypeScript {
     (for (l <- line) yield toTypescript2(l.line)).mkString
   }
 
-  /*
-    @todo Header should be generated from the codelines as used
-     */
-  def defaultHeader(code: CodeGenerationPreferences) = {
-    s"""// https://github.com/emmanueltouzery/prelude-ts
-       |// npm install --save prelude-ts
-       |import { Vector, LinkedList } from ${quoteString(code, "prelude-ts")}
-       |// https://www.npmjs.com/package/offensive
-       |// npm install --save offensive
-       |import ${quoteString(code, "offensive/assertions/length")}
-       |import ${quoteString(code, "offensive/assertions/anInteger")}
-       |import ${quoteString(code, "offensive/assertions/greaterThanOrEqualTo")}
-       |import check from ${quoteString(code, "offensive")}
-       |// https://www.npmjs.com/package/winston
-       |// npm install --save winston
-       |import * as winston from 'winston'
-       |
-       |const myLogger = winston.createLogger({
-       |    format: winston.format.json(),
-       |    transports: [
-       |        new winston.transports.File({filename: process.cwd() +'/project.logs'}),
-       |    ],
-       |
-       |})
-       |
-       |function head${code.listType()}<a>(param: ${code.listType()}<a>): a {
-       |  return param.head().getOrThrow()
-       |}
-       |
-       |function tail${code.listType()}<a>(param: ${code.listType()}<a>): ${code.listType()}<a> {
-       |  return param.tail().getOrElse(${toTypescript(emptyListInstance(code))})
-       |}
-       |
-       |""".stripMargin
+  def toTypescript4(line: Seq[CodeLine]): String = {
+    (for (l <- line) yield toTypescript2(l.line)).mkString("\n")
   }
-
-  def createNodeJSProject(code: CodeGenerationPreferences) = {
+  /*
+  def createNodeJSProject(code: Preferences.CodeGenerationPreferences) = {
     val projects = "." / "projects" / "nodejs"
     projects.createDirectoryIfNotExists()
 
     val readme = "." / "projects" / "nodejs" / "README.md"
     readme.writeText("README")
 
-    val packageJson = """{
-                        |  "name": "generated",
-                        |  "version": "1.0.0",
-                        |  "description": "README",
-                        |  "main": "index.js",
-                        |  "scripts": {
-                        |    "test": "echo \"Error: no test specified\" && exit 1"
-                        |  },
-                        |  "author": "",
-                        |  "license": "ISC"
-                        |}
-                        |
+    val package
+      son =
+        """{
+
+        ted",
+
+        0.0",
+
+        DME",
+
+        .js",
+
+        s": {
+                        |    "test": "echo \"Error:
+        it 1"
+        |  },
+
+        : "",
+
+        "I
+
+            |
                         |""".stripMargin
 
     val packageJsonFile = "." / "projects" / "nodejs" / "package.json"
@@ -681,20 +551,18 @@ object TypeScript {
     //val file = "." / "test.txt" //root/"tmp"/"test.txt"
     //file.overwrite("hello")
     //file.appendLine().append("world")
-    //assert(file.contentAsString == "hello\nworld")
-  }
+    //assert(file.contentA
 
-  def stringToCodeLines(function: String): Seq[CodeLine] = {
-    function.split("\n").map { line => CodeLine(Seq(PartialCodeLine(line))) }
-  }
 
-  def indent(code: Seq[CodeLine]): Seq[CodeLine] = {
-    for (c <- code) yield c.copy(indentLevel = c.indentLevel + 1)
-  }
+   == "hello\nworld")
+  }*/
 
-  def something(code: CodeGenerationPreferences,
+
+
+
+  def something(code: Preferences.CodeGenerationPreferences,
                 codeEnvironment: CodeEnvironment,
-                header: String,
+                header: (Seq[CodeLine]) => String,
                 test: Seq[CodeLine],
                 value: Method,
                 params: Seq[(String, String)],
@@ -718,7 +586,7 @@ object TypeScript {
     val paramNames = params.map(_._1)
     val paramTypes = params.map(_._2)
 
-    val m = methodAssertions(code, paramNames, paramTypes)
+    val m = Templates.methodAssertions(code, paramNames, paramTypes)
 
     //val methodImpl = codeLinesToString(1, test)
     val methodDefAndImpl = if (methodDefs.isEmpty) test else methodDefs ++ test
@@ -729,20 +597,24 @@ object TypeScript {
       m ++ methodDefAndImpl
     }
 
-    val headerCodeLines = stringToCodeLines(header)
+
+    //val headerCodeLines = CodeFormatting.stringToCodeLines(header)
     // functionDoc
     val functionCodeLines: Seq[CodeLine] = Seq(
       CodeLine(
-        Seq(PartialCodeLine(s"export function ${value.methodDefinition.name}${parameterized}(")) ++ parametersStr ++ Seq(PartialCodeLine("): ")) ++
-            Seq(idrisTypeToTypescriptType(code, parameterTypes.last, ft))),
+        Seq(PartialCodeLine(s"export function ${value.methodDefinition.name}${parameterized}(")) ++ parametersStr ++ Seq(
+          PartialCodeLine("): ")) ++
+            Seq(TypeConversion.idrisTypeToTypescriptType(code, parameterTypes.last, ft))),
     defaultCodeLine("{")) ++
-      indent(alsoAssert) ++ Seq(defaultCodeLine("}"))
+      CodeFormatting.increaseIndentOfCodeByOneLevel(alsoAssert) ++ Seq(defaultCodeLine("}"))
 
-    val function: Seq[CodeLine] = headerCodeLines ++ functionDoc ++ functionCodeLines
+    val codeBefore = functionDoc ++ functionCodeLines
+    val codeAfter = insertImportStatements(codeBefore, header)
+    val function: Seq[CodeLine] = codeAfter
     function
   }
 
-  def namesAndTypesOf(bindings: Seq[Binding], parameters: Seq[Grammar.MethodDefinitionParameter]): Seq[(String, String)] = {
+  def functionParametersBindedWithNames(bindings: Seq[Binding], parameters: Seq[Grammar.MethodDefinitionParameter]): Seq[(String, String)] = {
     bindings.map(_.localName).zip(parameters.map(_.param.name))
   }
 
@@ -753,9 +625,14 @@ object TypeScript {
           val parameterTypes: Seq[String] = for (p <- method.methodDefinition.parameters) yield (p.param.name)
    */
 
+  def insertImportStatements(codeGenerated: Seq[CodeLine], header: (Seq[CodeLine]) => String): Seq[CodeLine] = {
+    val str2 = header(codeGenerated)
+    CodeFormatting.stringToCodeLines(str2)
+  }
+
   def toTypescriptAST(fileName: String,
                       idrisAst: Parsed[Grammar.ParsedFile],
-                      code: CodeGenerationPreferences) = {
+                      code: Preferences.CodeGenerationPreferences) = {
 
     idrisAst match {
       case Parsed.Success(parsedIdrisCode, index) => {
@@ -766,9 +643,10 @@ object TypeScript {
           val methodLineParameterBindings = for (m <- method.patternMatch)
             yield parameterBinding(method, m)
 
-          val parameterNamesAndTypes = namesAndTypesOf(methodLineParameterBindings.head.bindings, method.methodDefinition.parameters)
+          val parameterNamesAndTypes = functionParametersBindedWithNames(methodLineParameterBindings.head.bindings, method.methodDefinition.parameters)
 
-          val codeEnvironment = CodeEnvironment(localVariablesFromMethodParameterScope =
+          val codeEnvironment = CodeEnvironment(
+            localVariablesFromMethodParameterScope =
               generateLocalVariables(method.methodDefinition.name, parameterNamesAndTypes, methodLineParameterBindings(0)),
             generationPreferences = code)
 
@@ -782,22 +660,22 @@ object TypeScript {
 
           val params = parameterNamesFiltered.flatten
 
-          val parametersStr: Seq[PartialCodeLine] = (for (p <- params) yield (Seq(PartialCodeLine(p._1 + ": "), idrisTypeToTypescriptType(code, p._2, ft)))).flatten
+          val parametersStr: Seq[PartialCodeLine] = (for (p <- params) yield (Seq(PartialCodeLine(p._1 + ": "), TypeConversion.idrisTypeToTypescriptType(code, p._2, ft)))).flatten
 
-          val header = defaultHeader(code)
+          val header = (s: Seq[CodeLine]) => Templates.defaultHeader(code, s)
 
           //val methodChoices = patternMatchesToCodeForMainFunction(codeEnvironment, value)
           val parameterTypes = method.methodDefinition.parameters.map(_.param.name)
 
           val codeGenerated: Seq[CodeLine] = something(code, codeEnvironment, header, methodCall, method, params, ft, parametersStr, parameterTypes)
 
-          // @todo At this point need codelines
+          val codeWithImportStatements: Seq[CodeLine] = codeGenerated
 
-          val output = codeLinesToString(0, codeGenerated)
+          val output = CodeFormatting.codeLinesToString(0, codeWithImportStatements)
 
           // Generate project and files
 
-          createNodeJSProject(code)
+          //createNodeJSProject(code)
 
           Files.writeString(Path.of("typescript/src/test/" + fileName), output)
 
@@ -814,45 +692,3 @@ object TypeScript {
   }
 
 }
-
-
-
-
-
-
-
-/*
-  def methodCall(ce: CodeEnvironment, code: CodeGenerationPreferences, methodCall: Grammar.MethodCall): CodeLine = {
-    if (methodCall.isReferenceNotMethodCall)
-      defaultCodeLine(s"return ${localVariable(ce, methodCall.method.name).get}")
-    else {
-      val params = for (p <- methodCall.parameter) yield {
-        p match {
-          case i: Identifier => {
-            localVariable(ce, i.name).get
-          }
-          case a: ArrayIdentifier => {
-            if (a.isEmpty)
-              emptyListInstance(code)
-            else {
-              throw new Exception("Error")
-              // @todo Handle case
-              defaultCodeLine("")
-            }
-          }
-        }
-      }
-      if (isCapitalized(methodCall.method.name))
-        defaultCodeLine(s"return ${idrisTypeToTypescriptType(code, methodCall.method.name, "")}")
-      else
-        defaultCodeLine(s"return ${methodCall.method.name}(${params.mkString(", ")})")
-    }
-  }
-
-
-
-  def patternMatchesToCodeForMainFunction(codeEnvironment: CodeEnvironment, methodImplWhere: Method): Seq[CodeLine] = {
-    null
-  }
-
- */

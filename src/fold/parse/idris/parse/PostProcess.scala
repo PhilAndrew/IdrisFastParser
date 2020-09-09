@@ -1,7 +1,7 @@
-package fold.parse.idris
+package fold.parse.idris.parse
 
 import fastparse.Parsed
-import fold.parse.idris.Grammar.{Data, DataValue, Method, MethodCall, ParsedFile}
+import Grammar.ParsedFile
 
 object PostProcess {
 

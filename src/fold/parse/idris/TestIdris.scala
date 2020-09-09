@@ -2,7 +2,9 @@ package fold.parse.idris
 
 import java.nio.file.{Files, Path}
 
-import fold.parse.idris.TypeScript.CodeGenerationPreferences
+import fold.parse.idris.parse.{Grammar, PostProcess}
+import fold.parse.idris.typescript.Preferences.CodeGenerationPreferences
+import fold.parse.idris.typescript.TypeScript
 
 object TestIdris extends App {
   import fastparse._
