@@ -1,6 +1,6 @@
 package fold.parse.idris.typescript
 
-import fold.parse.idris.typescript.TypeScript.PartialCodeLine
+import fold.parse.idris.typescript.TypeScript.{PartialCodeLine, preludeTsVectorForList}
 
 object TypeConversion {
 
@@ -17,7 +17,7 @@ object TypeConversion {
                                 parameterizedType: String): PartialCodeLine = {
     idrisType match {
       case "List" => {
-        PartialCodeLine(s"${preferences.listType()}<${parameterizedType}>")
+        PartialCodeLine(s"${preferences.listType()}<${parameterizedType}>", Seq(preferences.listNodeJs()))
       }
       case "Bool" => PartialCodeLine("boolean")
       case "Nat" => PartialCodeLine("number")

@@ -1,5 +1,7 @@
 package fold.parse.idris.typescript
 
+import fold.parse.idris.typescript.TypeScript.{preludeTsListForList, preludeTsVectorForList}
+
 object Preferences {
   case class CodeGenerationPreferences(usePreludeTs: Boolean = true,
                                        usePreludeTsVectorForList: Boolean = true,
@@ -11,6 +13,13 @@ object Preferences {
                                        useTripleEqualsForIntegerComparisons: Boolean = true,
                                        generateNodeJSProject: Boolean = true,
                                        outputPath: Option[String] = None) {
+    def listNodeJs(): TypeScript.NodeJsLibrary = {
+      if (usePreludeTsVectorForList)
+        preludeTsVectorForList
+      else
+        preludeTsListForList
+    }
+
     def listType() = if (usePreludeTsVectorForList) "Vector" else if (usePreludeTsListForList) "LinkedList" else ""
   }
 }

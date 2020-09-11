@@ -1,6 +1,6 @@
 package fold.parse.idris.typescript
 
-import fold.parse.idris.typescript.TypeScript.{CodeLine, defaultCodeLine, nodeJsLibraryOf, partialCodeLine, toTypescript}
+import fold.parse.idris.typescript.TypeScript.{CodeLine, NodeJsLibrary, defaultCodeLine, nodeJsLibraryOf, partialCodeLine, toTypescript}
 
 object Templates {
 
@@ -11,40 +11,40 @@ object Templates {
 
     // @todo Go through the insertImportStatements to work out what import statements to use
 
-    val nodeJsLibraries = (for (z <- insertImportStatements) yield z.nodeJsLibraryUsage).flatten.toSet
+    val nodeJsLibraries = (for (z <- insertImportStatements;
+                                k <- z.line) yield z.nodeJsLibraryUsage ++ k.nodeJsLibraryUsage).flatten.toSet
 
-    val d = for (s <- nodeJsLibraries; i <- s.imports) yield {
-      i
+    val d = for (s <- nodeJsLibraries) yield {
+      "// " + s.name + "\n" + "// " + s.url + "\n" +
+      "// npm install --save " + s.npmInstall + "\n" + s.imports.mkString("\n")
     }
 
     val insertLib = d.mkString("\n")
 
     // import { Vector, LinkedList } from ${CodeFormatting.quoteString(code, "prelude-ts")}
     println(nodeJsLibraries)
-    val importStatements = s"""// https://github.com/emmanueltouzery/prelude-ts
-                             |// npm install --save prelude-ts
-                             |$insertLib
-                             |// https://www.npmjs.com/package/offensive
-                             |// npm install --save offensive
-                             |import ${CodeFormatting.quoteString(code, "offensive/assertions/length")}
-                             |import ${CodeFormatting.quoteString(code, "offensive/assertions/anInteger")}
-                             |import ${CodeFormatting.quoteString(code, "offensive/assertions/greaterThanOrEqualTo")}
-                             |import check from ${CodeFormatting.quoteString(code, "offensive")}
-                             |// https://www.npmjs.com/package/winston
-                             |// npm install --save winston
-                             |import * as winston from 'winston'""".stripMargin
+    val importStatements = s"""// Calculated import statements
+                             |$insertLib""".stripMargin
+
+    /*
+    // https://www.npmjs.com/package/winston
+// npm install --save winston
+import * as winston from 'winston'
+
+
+const myLogger = winston.createLogger({
+    format: winston.format.json(),
+    transports: [
+        new winston.transports.File({filename: process.cwd() +'/project.logs'}),
+    ],
+
+})
+
+     */
 
     val str = TypeScript.toTypescript4(insertImportStatements)
 
     s"""|$importStatements
-       |
-       |const myLogger = winston.createLogger({
-       |    format: winston.format.json(),
-       |    transports: [
-       |        new winston.transports.File({filename: process.cwd() +'/project.logs'}),
-       |    ],
-       |
-       |})
        |
        |function head${code.listType()}<a>(param: ${code.listType()}<a>): a {
        |  return param.head().getOrThrow()
@@ -57,16 +57,16 @@ object Templates {
        |""".stripMargin + str
   }
 
-  def codeLineAssert(code: Preferences.CodeGenerationPreferences, c: String): CodeLine = {
-    CodeLine(partialCodeLine(c), 0, nodeJsLibraryOf(code))
+  def codeLineAssert(code: Preferences.CodeGenerationPreferences, c: String, nodeJsLibrary: Seq[NodeJsLibrary]): CodeLine = {
+    CodeLine(partialCodeLine(c), 0, nodeJsLibrary)
   }
 
   def methodAssertions(code: Preferences.CodeGenerationPreferences, paramNames: Seq[String], paramTypes: Seq[String]): Seq[CodeLine] = {
     val result1 = for (p <- paramNames.zip(paramTypes)) yield {
       p._2 match {
         case "Nat" => {
-          Seq(codeLineAssert(code, s"""check(${p._1}, ${CodeFormatting.quoteString(code, p._1)}).is.anInteger()"""),
-            codeLineAssert(code, s"""check(${p._1}, ${CodeFormatting.quoteString(code, p._1)}).is.greaterThanOrEqualTo(0)()"""))
+          Seq(codeLineAssert(code, s"""check(${p._1}, ${CodeFormatting.quoteString(code, p._1)}).is.anInteger()""", Seq(TypeScript.assertNodeJsLibrary)),
+            codeLineAssert(code, s"""check(${p._1}, ${CodeFormatting.quoteString(code, p._1)}).is.greaterThanOrEqualTo(0)()""", Seq(TypeScript.assertNodeJsLibrary)))
         }
         case _ => Seq.empty
       }
