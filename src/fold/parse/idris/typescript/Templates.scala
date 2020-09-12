@@ -23,8 +23,7 @@ object Templates {
 
     // import { Vector, LinkedList } from ${CodeFormatting.quoteString(code, "prelude-ts")}
     println(nodeJsLibraries)
-    val importStatements = s"""// Calculated import statements
-                             |$insertLib""".stripMargin
+    val importStatements = insertLib
 
     /*
     // https://www.npmjs.com/package/winston
