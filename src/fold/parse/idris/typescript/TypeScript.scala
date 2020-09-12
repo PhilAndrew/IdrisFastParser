@@ -511,6 +511,11 @@ object TypeScript {
   def toTypescript4(line: Seq[CodeLine]): String = {
     (for (l <- line) yield toTypescript2(l.line)).mkString("\n")
   }
+
+  def toCodeLines(str: String): Seq[CodeLine] = {
+    for (l <- str.split("\n")) yield CodeLine(Seq(PartialCodeLine(l, Seq.empty)), 0, Seq.empty)
+  }
+
   /*
   def createNodeJSProject(code: Preferences.CodeGenerationPreferences) = {
     val projects = "." / "projects" / "nodejs"
@@ -562,7 +567,7 @@ object TypeScript {
 
   def something(code: Preferences.CodeGenerationPreferences,
                 codeEnvironment: CodeEnvironment,
-                header: (Seq[CodeLine]) => String,
+                header: (Seq[CodeLine]) => Seq[CodeLine],
                 test: Seq[CodeLine],
                 value: Method,
                 params: Seq[(String, String)],
@@ -598,6 +603,7 @@ object TypeScript {
     }
 
 
+    val indented = CodeFormatting.increaseIndentOfCodeByOneLevel(alsoAssert)
     //val headerCodeLines = CodeFormatting.stringToCodeLines(header)
     // functionDoc
     val functionCodeLines: Seq[CodeLine] = Seq(
@@ -606,7 +612,7 @@ object TypeScript {
           PartialCodeLine("): ")) ++
             Seq(TypeConversion.idrisTypeToTypescriptType(code, parameterTypes.last, ft))),
     defaultCodeLine("{")) ++
-      CodeFormatting.increaseIndentOfCodeByOneLevel(alsoAssert) ++ Seq(defaultCodeLine("}"))
+      indented ++ Seq(defaultCodeLine("}"))
 
     val codeBefore = functionDoc ++ functionCodeLines
     val codeAfter = insertImportStatements(codeBefore, header)
@@ -625,9 +631,8 @@ object TypeScript {
           val parameterTypes: Seq[String] = for (p <- method.methodDefinition.parameters) yield (p.param.name)
    */
 
-  def insertImportStatements(codeGenerated: Seq[CodeLine], header: (Seq[CodeLine]) => String): Seq[CodeLine] = {
-    val str2 = header(codeGenerated)
-    CodeFormatting.stringToCodeLines(str2)
+  def insertImportStatements(codeGenerated: Seq[CodeLine], header: (Seq[CodeLine]) => Seq[CodeLine]): Seq[CodeLine] = {
+    header(codeGenerated)
   }
 
   def toTypescriptAST(fileName: String,

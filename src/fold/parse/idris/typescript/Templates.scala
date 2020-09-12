@@ -7,7 +7,7 @@ object Templates {
   /*
     @todo Header should be generated from the codelines as used
      */
-  def defaultHeader(code: Preferences.CodeGenerationPreferences, insertImportStatements: Seq[CodeLine]) = {
+  def defaultHeader(code: Preferences.CodeGenerationPreferences, insertImportStatements: Seq[CodeLine]): Seq[CodeLine] = {
 
     // @todo Go through the insertImportStatements to work out what import statements to use
 
@@ -42,9 +42,9 @@ const myLogger = winston.createLogger({
 
      */
 
-    val str = TypeScript.toTypescript4(insertImportStatements)
+    //val str = TypeScript.toTypescript4(insertImportStatements)
 
-    s"""|$importStatements
+    val headerInsert = s"""|$importStatements
        |
        |function head${code.listType()}<a>(param: ${code.listType()}<a>): a {
        |  return param.head().getOrThrow()
@@ -54,7 +54,9 @@ const myLogger = winston.createLogger({
        |  return param.tail().getOrElse(${toTypescript(DefaultTypes.emptyListInstance(code))})
        |}
        |
-       |""".stripMargin + str
+       |""".stripMargin
+
+    TypeScript.toCodeLines(headerInsert) ++ insertImportStatements
   }
 
   def codeLineAssert(code: Preferences.CodeGenerationPreferences, c: String, nodeJsLibrary: Seq[NodeJsLibrary]): CodeLine = {
