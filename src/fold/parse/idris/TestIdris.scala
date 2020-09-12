@@ -100,6 +100,24 @@ object TestIdris extends App {
   testPlus
 
   println()
+  def testReverse2 = {
+    val str = """reverse1 : List a -> List a
+                |reverse1 [] = []
+                |reverse1 (x :: xs) = reverse1 xs ++ [x]""".stripMargin
+    val result = parse(str, Grammar.method(_))
+    println(str)
+    pprint.pprintln(result)
+    val postProcess = PostProcess.postProcessParse(result)
+
+    val code1 = CodeGenerationPreferences()
+    TypeScript.toTypescriptAST("generatedReverse.ts", postProcess, code1);
+
+    println("Done")
+  }
+  //testReverse2
+
+
+  println()
   def testEventOdd = {
     val str = """even : Nat -> Bool
                 |even Z = True

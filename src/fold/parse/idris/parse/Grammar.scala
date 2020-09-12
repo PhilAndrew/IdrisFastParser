@@ -47,7 +47,8 @@ object Grammar {
     Data(DataType(Identifier("Pair"), Seq.empty), Seq.empty)
   })
 
-  def method[_: P] = P ( optSpace ~ methodDecl ~ optSpace ~ P(newLine ~ optSpace ~ methodImpl ~ optSpace).rep(0) ~ consumeEmptyLines ~ End)
+  def method[_: P] = P ( optSpace ~ methodDecl ~ optSpace ~
+                                      P(newLine ~ optSpace ~ methodImpl ~ optSpace).rep(0) ~ consumeEmptyLines ~ End)
     .map(f => ParsedFile(Some(Method(f._1, f._2))))
 
   def newLine[_: P] = P("\n")
@@ -112,9 +113,9 @@ object Grammar {
       MethodLine(f._1, f._2, f._3)
     })
 
-  def methodImplLeft[_: P] = P(paramLeft ~ P(space ~ paramLeft).rep(0))
+  def methodImplLeft[_: P] = P(paramLeft ~ P(space ~ paramLeft).rep(0)).log
 
-  def paramLeft[_: P] = P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch)
+  def paramLeft[_: P] = P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch).log
   //P(bracketPatternMatch | emptyArray | Lexical.identifier)
 
   def methodImplWhere[_: P] = P( &("where") ~ "where" ~ optSpace ~ newLine ~ optSpace ~
@@ -160,7 +161,14 @@ object Grammar {
       DataValueOrMethodCall(None, Some(MethodCall(f._1, f._2, isDataResultNotMethodCall = true)))
     }
   })
-  def patternMatchRightSide[_: P] = P(dataValue | methodCall)
+
+  def emptyArrayDataValue[_ : P]: P[DataValueOrMethodCall] = P(emptyArray).map((f) => {
+    // @todo This is an empty array and should return some parameters
+    throw new Exception("PHILIP FIX THIS")
+    DataValueOrMethodCall(None, None)
+  })
+
+  def patternMatchRightSide[_: P] = P(emptyArrayDataValue | dataValue | methodCall)
 
   def patternMatch[_: P]: P[MethodLine] = methodImpl
   /*

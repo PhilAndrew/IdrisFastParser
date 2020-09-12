@@ -43,7 +43,7 @@ const myLogger = winston.createLogger({
 
     //val str = TypeScript.toTypescript4(insertImportStatements)
 
-    val headerInsert = s"""|$importStatements
+    val headerInsert = if (nodeJsLibraries.find(f => f.name == "Vector" || f.name == "LinkedList").isDefined) s"""|$importStatements
        |
        |function head${code.listType()}<a>(param: ${code.listType()}<a>): a {
        |  return param.head().getOrThrow()
@@ -53,7 +53,7 @@ const myLogger = winston.createLogger({
        |  return param.tail().getOrElse(${toTypescript(DefaultTypes.emptyListInstance(code))})
        |}
        |
-       |""".stripMargin
+       |""".stripMargin else importStatements + "\n"
 
     TypeScript.toCodeLines(headerInsert) ++ insertImportStatements
   }

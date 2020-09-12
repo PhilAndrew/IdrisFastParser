@@ -444,7 +444,7 @@ object TypeScript {
 
   def docComments(code: Preferences.CodeGenerationPreferences, params: Seq[(String, String)]): Seq[CodeLine] = {
     val codeLines = (for (p <- params.zipWithIndex) yield {
-      defaultCodeLine(s"* @param ${p._1._1} ${TypeConversion.idrisTypeToTypescriptType(code, p._1._2, "a")} ?")
+      defaultCodeLine(s"* @param ${p._1._1} ${toTypescript(TypeConversion.idrisTypeToTypescriptType(code, p._1._2, "a"))} ?")
     }) :+ defaultCodeLine(s"* @returns ?")
 
     val parameterJsDoc = CodeFormatting.codeLinesToString(0, codeLines)
