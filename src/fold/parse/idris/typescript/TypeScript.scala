@@ -226,6 +226,14 @@ object TypeScript {
     codeEnvironment.localVariablesFromMethodParameterScope.find(_.variableAlias.contains(name))
   }
 
+  def createEmptyArray(code: Preferences.CodeGenerationPreferences): String = {
+    s"${code.listType()}.of()"
+  }
+
+  def emptyArrayFixThis(code: Preferences.CodeGenerationPreferences, name: String): String = {
+    if (name == "[]") createEmptyArray(code) else s""""$name""""
+  }
+
   def buildCode(code: Preferences.CodeGenerationPreferences, codeEnvironment: CodeEnvironment, patternMatch: Grammar.MethodLine): Seq[CodeLine] = {
 
     val c2 = updateCodeEnvironment(codeEnvironment, patternMatch)
@@ -246,7 +254,7 @@ object TypeScript {
       if (c.isDefined)
         Seq(defaultCodeLine(s"""return ${c.get}"""))
       else
-        Seq(defaultCodeLine(s"""return "${patternMatch.statement.dataValue.get.name.name}$i""""))
+        Seq(defaultCodeLine(s"""return ${emptyArrayFixThis(code, patternMatch.statement.dataValue.get.name.name)}$i"""))
     } else if ((patternMatch.statement.methodCall.isDefined) && (patternMatch.statement.methodCall.get.isReferenceNotMethodCall))
       Seq(defaultCodeLine(s"return ${localVariable(c2, patternMatch.statement.methodCall.get.method.name).get}"))
     else {
@@ -255,9 +263,14 @@ object TypeScript {
           case i: Identifier => {
             la(i)
           }
-          case e: Extraction => {
+          case e: MethodExpression => {
             // Do prepend
-            s"${localVariable(c2, e.second.name).get}.prepend(${e.first.name})"
+            e.expressionType match {
+              case ex: HeadTailExpression => s"${localVariable(c2, e.second.name).get}.prepend(${e.first.name})"
+              case ex: ListAppendExpression => s"${e.first.name}.append(${localVariable(c2, e.second.name).get})"
+              case _ => ""
+                // xs.append(x)
+            }
           }
           case a: ArrayIdentifier => {
             if (a.isEmpty)

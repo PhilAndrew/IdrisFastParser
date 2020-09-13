@@ -60,7 +60,7 @@ object TestIdris extends App {
     val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
     TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
-  testRevAcc
+  //testRevAcc
 
   println()
   def testIsSingleton = {
@@ -78,7 +78,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  testIsSingleton
+  //testIsSingleton
 
 
   println()
@@ -97,13 +97,14 @@ object TestIdris extends App {
 
     println("Done")
   }
-  testPlus
+  //testPlus
 
   println()
   def testReverse2 = {
+    // @todo Change last line to: reverse1 (x :: xs) = reverse1 (xs ++ [x])
     val str = """reverse1 : List a -> List a
                 |reverse1 [] = []
-                |reverse1 (x :: xs) = reverse1 xs ++ [x]""".stripMargin
+                |reverse1 (x :: xs) = reverse1 (xs ++ [x])""".stripMargin
     val result = parse(str, Grammar.method(_))
     println(str)
     pprint.pprintln(result)
@@ -114,7 +115,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  //testReverse2
+  testReverse2
 
 
   println()
@@ -136,7 +137,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  testEventOdd
+  //testEventOdd
 
 
   println()

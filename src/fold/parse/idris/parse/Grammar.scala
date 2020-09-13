@@ -15,7 +15,7 @@ object Grammar {
   case class MethodDefinition(name: String, parameters: Seq[MethodDefinitionParameter])
   case class MethodDefinitionParameter(param: Identifier, rest: Seq[Identifier])
 
-  case class MethodParameter(name: Option[String], bracketedForm: Option[Bracketed] = None, extractionForm: Option[Extraction] = None)
+  case class MethodParameter(name: Option[String], bracketedForm: Option[Bracketed] = None, extractionForm: Option[MethodExpression] = None)
   case class MethodNameBindings(methodName: Identifier, rest: Seq[MethodParameter])
 
   case class Method(methodDefinition: MethodDefinition, patternMatch: Seq[MethodLine])
@@ -25,7 +25,11 @@ object Grammar {
   case class MethodCall(method: Identifier, parameter: Seq[Product], isReferenceNotMethodCall: Boolean = false, isDataResultNotMethodCall: Boolean = false)
   case class DataValue(name: Identifier, rest: Seq[Identifier])
 
-  case class Extraction(first: Identifier, second: Identifier)
+  trait ExpressionType
+  case class HeadTailExpression() extends ExpressionType
+  case class ListAppendExpression() extends ExpressionType
+  case class MethodExpression(expressionType: ExpressionType, first: Identifier, second: Identifier)
+
   case class Bracketed(first: Identifier, second: Seq[Identifier])
 
   case class DataType(first: Identifier, second: Seq[Identifier])
@@ -97,7 +101,7 @@ object Grammar {
           s match {
             case i: Identifier => MethodParameter(Some(i.name))
             case a: ArrayIdentifier => MethodParameter(Some(a.name))
-            case e: Extraction => MethodParameter(None, extractionForm = Some(e))
+            case e: MethodExpression => MethodParameter(None, extractionForm = Some(e))
             case _ => {
               MethodParameter(None)
             }
@@ -107,15 +111,15 @@ object Grammar {
         MethodNameBindings(f._1.asInstanceOf[Identifier], params)
       }
     }
-  }) ~ optSpace ~ "=" ~ optSpace ~ patternMatchRightSide ~
+  }) ~ optSpace ~ "=" ~ optSpace ~ methodImplRightSide ~
     P(&(space ~ "where") ~ space ~ methodImplWhere).? )
     .map(f => {
       MethodLine(f._1, f._2, f._3)
     })
 
-  def methodImplLeft[_: P] = P(paramLeft ~ P(space ~ paramLeft).rep(0)).log
+  def methodImplLeft[_: P] = P(methodImplLeftParam ~ P(space ~ methodImplLeftParam).rep(0))
 
-  def paramLeft[_: P] = P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch).log
+  def methodImplLeftParam[_: P] = P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch)
   //P(bracketPatternMatch | emptyArray | Lexical.identifier)
 
   def methodImplWhere[_: P] = P( &("where") ~ "where" ~ optSpace ~ newLine ~ optSpace ~
@@ -136,7 +140,9 @@ object Grammar {
     for (n <- f._2.toList) yield {
       n match {
         case Identifier(s) => Identifier(s)
-        case ArrayIdentifier(s, isEmpty) => ArrayIdentifier(s, isEmptyArray(s))
+        case ArrayIdentifier(s, isEmpty) => {
+          ArrayIdentifier(s, isEmptyArray(s))
+        }
         case _ => n
       }
     }
@@ -147,15 +153,35 @@ object Grammar {
   def methodCallIdentifier[_: P] = P(Lexical.identifier)
   def methodCallParameter[_: P] = P(!P("where") ~ P(emptyArray | bracketedMethodCallParameter | Lexical.identifier))
 
-  def bracketedMethodCallParameter[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ optSpace ~ ")")
-    .map(f => Extraction(f._1, f._2))
+  def bracketedMethodCallParameter[_: P] = P("(" ~ optSpace ~
+    expression ~
+    optSpace ~ ")")
+
+  // head :: tail
+  def headTailExpression[_: P] = P(Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier)
+    .map(f => {
+      MethodExpression(HeadTailExpression(), f._1, f._2)
+    })
+
+  // xs ++ [x]
+  def listAppendExpression[_: P] = P(Lexical.identifier ~ optSpace ~ "++" ~ optSpace ~ "[" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "]")
+    .map(f => {
+      MethodExpression(ListAppendExpression(), f._1, f._2)
+    })
+
+  def expression[_: P] = P(headTailExpression | listAppendExpression)
 
   /*
   methodCall
    */
 
+  // eg. Nat
+  def isBuildInIdrisType(t: Identifier): Boolean = {
+    t.name.head.isUpper
+  }
+
   def dataValue[_: P]: P[DataValueOrMethodCall] = P(&(Lexical.uppercase) ~ Lexical.identifier ~ P(&(space ~ Lexical.uppercase) ~ space ~ Lexical.identifier).rep(0)).map(f => {
-    if (f._1.toString.head.isUpper) {
+    if (isBuildInIdrisType(f._1)) {
       DataValueOrMethodCall(Some(DataValue(f._1, f._2)), None)
     } else {
       DataValueOrMethodCall(None, Some(MethodCall(f._1, f._2, isDataResultNotMethodCall = true)))
@@ -163,12 +189,10 @@ object Grammar {
   })
 
   def emptyArrayDataValue[_ : P]: P[DataValueOrMethodCall] = P(emptyArray).map((f) => {
-    // @todo This is an empty array and should return some parameters
-    throw new Exception("PHILIP FIX THIS")
-    DataValueOrMethodCall(None, None)
+    DataValueOrMethodCall(Some(DataValue(Identifier(f.name) ,Seq.empty)), None)
   })
 
-  def patternMatchRightSide[_: P] = P(emptyArrayDataValue | dataValue | methodCall)
+  def methodImplRightSide[_: P] = P(emptyArrayDataValue | dataValue | methodCall)
 
   def patternMatch[_: P]: P[MethodLine] = methodImpl
   /*
@@ -180,8 +204,9 @@ object Grammar {
   //  def patternMatchIdentifier[_: P] = P(space ~ !("=") ~ P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch))
 
   def arrayPatternMatch[_: P] = emptyArray
+
   def listPatternMatch[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ ")")
-    .map(f => Extraction(f._1, f._2))
+    .map(f => MethodExpression(HeadTailExpression(), f._1, f._2))
 
   def bracketPatternMatch[_: P] = P(&("(") ~ "(" ~ optSpace ~ Lexical.identifier ~ P(space ~ Lexical.identifier).rep(0) ~ optSpace ~")")
     .map(f => Bracketed(f._1, f._2))
