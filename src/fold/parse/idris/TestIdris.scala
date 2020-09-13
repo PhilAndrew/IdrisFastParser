@@ -60,7 +60,7 @@ object TestIdris extends App {
     val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
     TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
-  //testRevAcc
+  testRevAcc
 
   println()
   def testIsSingleton = {
@@ -78,7 +78,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  //testIsSingleton
+  testIsSingleton
 
 
   println()
@@ -97,7 +97,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  //testPlus
+  testPlus
 
   println()
   def testReverse2 = {
@@ -137,7 +137,7 @@ object TestIdris extends App {
 
     println("Done")
   }
-  //testEventOdd
+  testEventOdd
 
 
   println()
