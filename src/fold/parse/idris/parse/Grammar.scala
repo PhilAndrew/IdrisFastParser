@@ -135,18 +135,6 @@ object Grammar {
     (s.filterNot(_ == ' ') == "[]")
   }
 
-  // Calling a method
-  def methodCall[_: P]: P[DataValueOrMethodCall] = P ( methodCallIdentifiers ).map(f => DataValueOrMethodCall ( None, Some( MethodCall(f._1, {
-    for (n <- f._2.toList) yield {
-      n match {
-        case Identifier(s) => Identifier(s)
-        case ArrayIdentifier(s, isEmpty) => {
-          ArrayIdentifier(s, isEmptyArray(s))
-        }
-        case _ => n
-      }
-    }
-  }))))
 
   def methodCallIdentifiers[_: P] = P(methodCallIdentifier) ~ P(!(space ~ "where") ~ space ~ methodCallParameter).rep(0)
   //def methodCallIdentifiers2[_: P] = P(methodCallIdentifier) ~ P(space ~ methodCallParameter).rep(0)
@@ -180,6 +168,17 @@ object Grammar {
     t.name.head.isUpper
   }
 
+
+
+
+
+
+
+
+
+
+
+
   def dataValue[_: P]: P[DataValueOrMethodCall] = P(&(Lexical.uppercase) ~ Lexical.identifier ~ P(&(space ~ Lexical.uppercase) ~ space ~ Lexical.identifier).rep(0)).map(f => {
     if (isBuildInIdrisType(f._1)) {
       DataValueOrMethodCall(Some(DataValue(f._1, f._2)), None)
@@ -192,7 +191,30 @@ object Grammar {
     DataValueOrMethodCall(Some(DataValue(Identifier(f.name) ,Seq.empty)), None)
   })
 
-  def methodImplRightSide[_: P] = P(emptyArrayDataValue | dataValue | methodCall)
+  // Calling a method
+  def methodCall[_: P]: P[DataValueOrMethodCall] = P ( methodCallIdentifiers ).map(f => DataValueOrMethodCall ( None, Some( MethodCall(f._1, {
+    for (n <- f._2.toList) yield {
+      n match {
+        case Identifier(s) => Identifier(s)
+        case ArrayIdentifier(s, isEmpty) => {
+          ArrayIdentifier(s, isEmptyArray(s))
+        }
+        case _ => n
+      }
+    }
+  }))))
+
+  def successorCall[_: P] = P ( "S" ~ optSpace ~ "(" ~ optSpace ~ methodCall ~ optSpace ~ ")" ).log
+
+  def methodImplRightSide[_: P] = P(successorCall | emptyArrayDataValue | dataValue | methodCall)
+
+
+
+
+
+
+
+
 
   def patternMatch[_: P]: P[MethodLine] = methodImpl
   /*

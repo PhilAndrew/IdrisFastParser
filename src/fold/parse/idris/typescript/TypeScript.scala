@@ -678,7 +678,14 @@ object TypeScript {
 
           val params = parameterNamesFiltered.flatten
 
-          val parametersStr: Seq[PartialCodeLine] = (for (p <- params) yield (Seq(PartialCodeLine(p._1 + ": "), TypeConversion.idrisTypeToTypescriptType(code, p._2, ft)))).flatten
+          val parametersStr: Seq[PartialCodeLine] = (for (p <- params.zipWithIndex) yield
+            {
+              val part = Seq(PartialCodeLine(p._1._1 + ": "), TypeConversion.idrisTypeToTypescriptType(code, p._1._2, ft))
+              if (p._2 > 0)
+                PartialCodeLine(", ") +: part
+              else
+                part
+            }).flatten
 
           val header = (s: Seq[CodeLine]) => Templates.defaultHeader(code, s)
 

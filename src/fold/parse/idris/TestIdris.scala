@@ -39,6 +39,19 @@ object TestIdris extends App {
   }
   //testMethodCall
 
+  def genTest(str: String, file: String) = {
+    val result = parse(str, Grammar.method(_))
+    println(str)
+    pprint.pprintln(result)
+    val postProcess = PostProcess.postProcessParse(result)
+
+    val code1 = CodeGenerationPreferences()
+    TypeScript.toTypescriptAST(file, postProcess, code1);
+
+    println("Done")
+  }
+
+
   println()
   def testRevAcc = {
     val str = """reverse : List a -> List a
@@ -60,84 +73,45 @@ object TestIdris extends App {
     val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
     TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
-  testRevAcc
+  //testRevAcc
 
   println()
-  def testIsSingleton = {
-    val str = """isSingleton : Bool -> Type
-                |isSingleton True = Nat
-                |isSingleton False = List Nat
-                |""".stripMargin
-    val result = parse(str, Grammar.method(_))
-    println(str)
-    pprint.pprintln(result)
-    val postProcess = PostProcess.postProcessParse(result)
+/*
+  genTest("""isSingleton : Bool -> Type
+            |isSingleton True = Nat
+            |isSingleton False = List Nat
+            |""".stripMargin, "generatedIsSingleton.ts")
+*/
 
-    val code1 = CodeGenerationPreferences()
-    TypeScript.toTypescriptAST("generatedIsSingleton.ts", postProcess, code1);
-
-    println("Done")
-  }
-  testIsSingleton
+  genTest("""plus : Nat -> Nat -> Nat
+            |plus Z     y = y
+            |plus (S k) y = S (plus k y)""".stripMargin, "generatedPlus.ts")
 
 
-  println()
-  def testPlus = {
-    val str =
-      """plus : Nat -> Nat -> Nat
-        |plus Z     y = y
-        |plus (S k) y = S (plus k y)""".stripMargin
-    val result = parse(str, Grammar.method(_))
-    println(str)
-    pprint.pprintln(result)
-    val postProcess = PostProcess.postProcessParse(result)
+/*
+  genTest("""reverse1 : List a -> List a
+            |reverse1 [] = []
+            |reverse1 (x :: xs) = reverse1 (xs ++ [x])""".stripMargin, "generatedReverse.ts")
 
-    val code1 = CodeGenerationPreferences()
-    TypeScript.toTypescriptAST("generatedPlus.ts", postProcess, code1);
+  genTest("""even : Nat -> Bool
+            |even Z = True
+            |even (S k) = odd k where
+            |  odd : Nat -> Bool
+            |  odd Z = False
+            |  odd (S k) = even k""".stripMargin, "generatedEvenOdd.ts")
 
-    println("Done")
-  }
-  testPlus
-
-  println()
-  def testReverse2 = {
-    // @todo Change last line to: reverse1 (x :: xs) = reverse1 (xs ++ [x])
-    val str = """reverse1 : List a -> List a
-                |reverse1 [] = []
-                |reverse1 (x :: xs) = reverse1 (xs ++ [x])""".stripMargin
-    val result = parse(str, Grammar.method(_))
-    println(str)
-    pprint.pprintln(result)
-    val postProcess = PostProcess.postProcessParse(result)
-
-    val code1 = CodeGenerationPreferences()
-    TypeScript.toTypescriptAST("generatedReverse.ts", postProcess, code1);
-
-    println("Done")
-  }
-  testReverse2
+*/
 
 
-  println()
-  def testEventOdd = {
-    val str = """even : Nat -> Bool
-                |even Z = True
-                |even (S k) = odd k where
-                |  odd : Nat -> Bool
-                |  odd Z = False
-                |  odd (S k) = even k
-                |""".stripMargin
-    val result = parse(str, Grammar.method(_))
-    println(str)
-    pprint.pprintln(result)
-    val postProcess = PostProcess.postProcessParse(result)
 
-    val code1 = CodeGenerationPreferences()
-    TypeScript.toTypescriptAST("generatedEvenOdd.ts", postProcess, code1);
 
-    println("Done")
-  }
-  testEventOdd
+
+
+
+
+
+
+
 
 
   println()
