@@ -34,7 +34,7 @@ object TestIdris extends App {
   // reverse xs = revAcc [] xs where
   def testMethodCall = {
     val str = "revAcc [] xs where"
-    val result = parse(str, Grammar.methodCall(_))
+    val result = parse(str, Grammar.methodImplRightSideMethodCall(_))
     println(result)
   }
   //testMethodCall
@@ -73,33 +73,41 @@ object TestIdris extends App {
     val code2 = CodeGenerationPreferences(usePreludeTsListForList = false, usePreludeTsVectorForList = true)
     TypeScript.toTypescriptAST("generatedVector.ts", postProcess, code2);
   }
-  //testRevAcc
+  testRevAcc
 
   println()
-/*
+
   genTest("""isSingleton : Bool -> Type
             |isSingleton True = Nat
             |isSingleton False = List Nat
             |""".stripMargin, "generatedIsSingleton.ts")
-*/
 
   genTest("""plus : Nat -> Nat -> Nat
             |plus Z     y = y
             |plus (S k) y = S (plus k y)""".stripMargin, "generatedPlus.ts")
 
+  val reverseSentence =
+    """reverse is List a to List a
+      |[] is []
+      |x :: xs is xs ++ [x]
+      |""".stripMargin
 
-/*
+  def sentenceToIdris(reverseSentence: String) = {
+    ""
+  }
+
+  val reverseIdris = sentenceToIdris(reverseSentence)
+
   genTest("""reverse1 : List a -> List a
             |reverse1 [] = []
             |reverse1 (x :: xs) = reverse1 (xs ++ [x])""".stripMargin, "generatedReverse.ts")
-
+/*
   genTest("""even : Nat -> Bool
             |even Z = True
             |even (S k) = odd k where
             |  odd : Nat -> Bool
             |  odd Z = False
             |  odd (S k) = even k""".stripMargin, "generatedEvenOdd.ts")
-
 */
 
 

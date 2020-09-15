@@ -293,8 +293,13 @@ object TypeScript {
         val scoped = getScopedVariable(codeEnvironment, patternMatch.statement.methodCall.get.method.name)
         if (p.isEmpty && scoped.isDefined) {
           Seq(defaultCodeLine(s"return ${scoped.get.variableName}"))
-        } else
-          Seq(defaultCodeLine(s"return ${patternMatch.statement.methodCall.get.method.name}(${parameters})"))
+        } else {
+          val add = if (patternMatch.statement.methodCall.get.isSuccessorMethodCall)
+            " + 1"
+          else
+            ""
+          Seq(defaultCodeLine(s"return ${patternMatch.statement.methodCall.get.method.name}(${parameters})${add}"))
+        }
       }
     }
   }

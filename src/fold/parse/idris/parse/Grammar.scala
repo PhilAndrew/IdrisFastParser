@@ -21,8 +21,9 @@ object Grammar {
   case class Method(methodDefinition: MethodDefinition, patternMatch: Seq[MethodLine])
   case class MethodLine(left: MethodNameBindings, statement: DataValueOrMethodCall, methodImplWhere: Option[Method])
 
+  //case class SuccessorMethodCall(dataValue: DataValueOrMethodCall)
   case class DataValueOrMethodCall(dataValue: Option[DataValue], methodCall: Option[MethodCall])
-  case class MethodCall(method: Identifier, parameter: Seq[Product], isReferenceNotMethodCall: Boolean = false, isDataResultNotMethodCall: Boolean = false)
+  case class MethodCall(method: Identifier, parameter: Seq[Product], isReferenceNotMethodCall: Boolean = false, isDataResultNotMethodCall: Boolean = false, isSuccessorMethodCall: Boolean = false)
   case class DataValue(name: Identifier, rest: Seq[Identifier])
 
   trait ExpressionType
@@ -179,7 +180,7 @@ object Grammar {
 
 
 
-  def dataValue[_: P]: P[DataValueOrMethodCall] = P(&(Lexical.uppercase) ~ Lexical.identifier ~ P(&(space ~ Lexical.uppercase) ~ space ~ Lexical.identifier).rep(0)).map(f => {
+  def methodImplRightSideDataValue[_: P]: P[DataValueOrMethodCall] = P(&(Lexical.uppercase) ~ Lexical.identifier ~ P(&(space ~ Lexical.uppercase) ~ space ~ Lexical.identifier).rep(0)).map(f => {
     if (isBuildInIdrisType(f._1)) {
       DataValueOrMethodCall(Some(DataValue(f._1, f._2)), None)
     } else {
@@ -187,12 +188,12 @@ object Grammar {
     }
   })
 
-  def emptyArrayDataValue[_ : P]: P[DataValueOrMethodCall] = P(emptyArray).map((f) => {
+  def methodImplRightSideEmptyArrayDataValue[_ : P]: P[DataValueOrMethodCall] = P(emptyArray).map((f) => {
     DataValueOrMethodCall(Some(DataValue(Identifier(f.name) ,Seq.empty)), None)
   })
 
   // Calling a method
-  def methodCall[_: P]: P[DataValueOrMethodCall] = P ( methodCallIdentifiers ).map(f => DataValueOrMethodCall ( None, Some( MethodCall(f._1, {
+  def methodImplRightSideMethodCall[_: P]: P[DataValueOrMethodCall] = P ( methodCallIdentifiers ).map(f => DataValueOrMethodCall ( None, Some( MethodCall(f._1, {
     for (n <- f._2.toList) yield {
       n match {
         case Identifier(s) => Identifier(s)
@@ -204,9 +205,11 @@ object Grammar {
     }
   }))))
 
-  def successorCall[_: P] = P ( "S" ~ optSpace ~ "(" ~ optSpace ~ methodCall ~ optSpace ~ ")" ).log
+  def methodImplRightSideSuccessorCall[_: P] = P ( "S" ~ optSpace ~ "(" ~ optSpace ~ methodImplRightSideMethodCall ~ optSpace ~ ")" ).map(f => {
+    f.copy(methodCall = Some(f.methodCall.get.copy(isSuccessorMethodCall = true))) // @todo Replace with
+  })
 
-  def methodImplRightSide[_: P] = P(successorCall | emptyArrayDataValue | dataValue | methodCall)
+  def methodImplRightSide[_: P] = P(methodImplRightSideSuccessorCall | methodImplRightSideEmptyArrayDataValue | methodImplRightSideDataValue | methodImplRightSideMethodCall)
 
 
 
@@ -260,3 +263,4 @@ object Grammar {
   def ArgCommentLine[_: P] = P ( "|||" ~ optSpace ~ "@" ~ CharsWhile(_ != '\n', 0) )
 
 }
+
