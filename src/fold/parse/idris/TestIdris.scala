@@ -76,12 +76,12 @@ object TestIdris extends App {
   testRevAcc
 
   println()
-/*
+
   genTest("""isSingleton : Bool -> Type
             |isSingleton True = Nat
             |isSingleton False = List Nat
             |""".stripMargin, "generatedIsSingleton.ts")
-*/
+
   genTest("""plus : Nat -> Nat -> Nat
             |plus Z     y = y
             |plus (S k) y = S (plus k y)""".stripMargin, "generatedPlus.ts")
