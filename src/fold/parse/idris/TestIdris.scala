@@ -76,12 +76,12 @@ object TestIdris extends App {
   testRevAcc
 
   println()
-
+/*
   genTest("""isSingleton : Bool -> Type
             |isSingleton True = Nat
             |isSingleton False = List Nat
             |""".stripMargin, "generatedIsSingleton.ts")
-
+*/
   genTest("""plus : Nat -> Nat -> Nat
             |plus Z     y = y
             |plus (S k) y = S (plus k y)""".stripMargin, "generatedPlus.ts")
@@ -98,17 +98,18 @@ object TestIdris extends App {
 
   val reverseIdris = sentenceToIdris(reverseSentence)
 
-  genTest("""reverse1 : List a -> List a
-            |reverse1 [] = []
-            |reverse1 (x :: xs) = reverse1 (xs ++ [x])""".stripMargin, "generatedReverse.ts")
-/*
-  genTest("""even : Nat -> Bool
-            |even Z = True
-            |even (S k) = odd k where
-            |  odd : Nat -> Bool
-            |  odd Z = False
-            |  odd (S k) = even k""".stripMargin, "generatedEvenOdd.ts")
-*/
+    genTest("""reverse1 : List a -> List a
+              |reverse1 [] = []
+              |reverse1 (x :: xs) = reverse1 (xs ++ [x])""".stripMargin, "generatedReverse.ts")
+
+  /*
+    genTest("""even : Nat -> Bool
+              |even Z = True
+              |even (S k) = odd k where
+              |  odd : Nat -> Bool
+              |  odd Z = False
+              |  odd (S k) = even k""".stripMargin, "generatedEvenOdd.ts")
+  */
 
 
 

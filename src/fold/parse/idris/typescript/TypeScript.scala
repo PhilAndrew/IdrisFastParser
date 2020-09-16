@@ -65,10 +65,18 @@ object TypeScript {
       if (r._1.extractionForm.isDefined) {
         val e = r._1.extractionForm.get
 
-        Seq(
-          CodeLine(partialCodeLine(s"const ${prefix(codeEnvironment, e.first.name)} = head${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"), 0, nodeJsLibraryOf(preferences)),
-          CodeLine(partialCodeLine(s"const ${prefix(codeEnvironment, e.second.name)} = tail${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"), 0, nodeJsLibraryOf(preferences)))
+        e.expressionType match {
+          case ex: HeadTailExpression => Seq(
+            CodeLine(partialCodeLine(s"const ${prefix(codeEnvironment, e.first.name)} = head${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"), 0, nodeJsLibraryOf(preferences)),
+            CodeLine(partialCodeLine(s"const ${prefix(codeEnvironment, e.second.name)} = tail${codeEnvironment.generationPreferences.listType()}(${patternMatch.left.methodName.name}Param${r._2 + 1})"), 0, nodeJsLibraryOf(preferences)))
+          case ex: SuccessorExression => Seq(
+            CodeLine(partialCodeLine(s"const ${prefix(codeEnvironment, e.first.name)} = ${patternMatch.left.methodName.name}Param${r._2 + 1} - 1"))
+          )
+          case _ => Seq.empty
+        }
+
       } else if (r._1.bracketedForm.isDefined) {
+        // @todo This code doesnt run anymore
         val b: Bracketed = r._1.bracketedForm.get
         if (b.first.name == "S") { // Assume (S k)
           Seq(defaultCodeLine(s"const k = ${patternMatch.left.methodName.name}Param${r._2 + 1} - 1"))

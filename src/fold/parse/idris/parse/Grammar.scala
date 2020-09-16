@@ -29,6 +29,7 @@ object Grammar {
   trait ExpressionType
   case class HeadTailExpression() extends ExpressionType
   case class ListAppendExpression() extends ExpressionType
+  case class SuccessorExression() extends ExpressionType
   case class MethodExpression(expressionType: ExpressionType, first: Identifier, second: Identifier)
 
   case class Bracketed(first: Identifier, second: Seq[Identifier])
@@ -120,7 +121,7 @@ object Grammar {
 
   def methodImplLeft[_: P] = P(methodImplLeftParam ~ P(space ~ methodImplLeftParam).rep(0))
 
-  def methodImplLeftParam[_: P] = P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketPatternMatch)
+  def methodImplLeftParam[_: P] = P(Lexical.identifier | arrayPatternMatch | listPatternMatch | bracketedSuccessorPatternMatch | bracketPatternMatch)
   //P(bracketPatternMatch | emptyArray | Lexical.identifier)
 
   def methodImplWhere[_: P] = P( &("where") ~ "where" ~ optSpace ~ newLine ~ optSpace ~
@@ -231,10 +232,19 @@ object Grammar {
   def arrayPatternMatch[_: P] = emptyArray
 
   def listPatternMatch[_: P] = P("(" ~ optSpace ~ Lexical.identifier ~ optSpace ~ "::" ~ optSpace ~ Lexical.identifier ~ ")")
-    .map(f => MethodExpression(HeadTailExpression(), f._1, f._2))
+    .map(f => {
+      MethodExpression(HeadTailExpression(), f._1, f._2)
+    })
 
   def bracketPatternMatch[_: P] = P(&("(") ~ "(" ~ optSpace ~ Lexical.identifier ~ P(space ~ Lexical.identifier).rep(0) ~ optSpace ~")")
     .map(f => Bracketed(f._1, f._2))
+
+  def bracketedSuccessorPatternMatch[_: P] = P(&("(" ~ optSpace ~ "S") ~ "(" ~ optSpace ~ "S" ~ space ~ Lexical.identifier ~ optSpace ~")")
+    .map(f => {
+      MethodExpression(SuccessorExression(), Identifier(f.name), Identifier("")) // @todo Identifier("") should be None
+    })
+
+
 
   def identifiers[_: P] = P(Lexical.identifier ~ P(space ~ Lexical.identifier).rep(0))
 
