@@ -25,12 +25,21 @@ object ParagraphLanguage extends App {
     println(idris)
   }
 
-  def testModule = {
+  def testAverageDef = {
     val str = "average is string to double"
+    // average : String -> Double
     val result = parse(str, ParaGrammar.sentence(_))
     println(result)
   }
+  testAverageDef
 
-  testModule
+  def testAverageImpl = {
+    val str = "average of str is cast total length / cast num words"
+    // average = cast totalLength / cast numWords
+    val result = parse(str, ParaGrammar.sentence(_))
+    println(result)
+  }
+  //testAverageImpl
+
 }
 
