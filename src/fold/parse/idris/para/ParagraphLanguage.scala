@@ -39,7 +39,7 @@ object ParagraphLanguage extends App {
     val result = parse(str, ParaGrammar.sentence(_))
     println(result)
   }
-  //testAverageImpl
+  testAverageImpl
 
 }
 
