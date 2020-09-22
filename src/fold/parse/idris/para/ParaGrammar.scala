@@ -9,30 +9,60 @@ object ParaGrammar {
 
   case class Identifier(name: String)
 
+  def quotedString[_: P] = {
+    shortstring
+  }
+
   def sentenceTo[_: P]: P[Identifier] = P(
-    &(identifier ~ space ~ "to") ~
-    identifier ~ space ~ "to" ~ space ~ identifier ~ P(space ~ "to" ~ space ~ identifier).rep(0)).map((f) => {
-      Identifier("")
-    })
+    &(P(identifier ~ space).rep(1) ~ "to") ~
+      P(identifier ~ space).rep(1) ~ "to" ~ space ~ identifier ~ P(space ~ "to" ~ space ~ identifier).rep(0)).map((f) => {
+    Identifier("")
+  })
+
+  def ofAndIdentifier[_: P] = P(
+    identifier | "of"
+  )
+
+  def sentenceTo2[_: P]: P[Identifier] = P(
+      ofAndIdentifier ~
+      P(space ~ ofAndIdentifier).rep(0)).map((f) => {
+    Identifier("")
+  })
+
 
   def sentenceIs[_: P] = P(
     // something is something to something to something
-    identifier ~ space ~ "is" ~ space ~ sentenceTo ~ End
+    &(P(identifier ~ space).rep(1) ~ "is" ) ~
+    P(identifier ~ space).rep(1) ~ "is" ~ space ~ sentenceTo2 ~ End
   )
 
-  def sentenceImpl[_: P] = {
-    P("cast total length / cast num words")
+  def expression[_: P] = {
+    P("/")
+  }
+
+  def some[_: P] = P(
+    expression |
+      identifier | "of" |
+      "the" | quotedString
+  )
+
+  // P("cast total length / cast num words")
+  // the length of words of str
+  def sentenceImpl[_: P]: P[Identifier] = {
+    P(some ~ P(space ~ some).rep(0)).map((f) => {
+      Identifier("")
+    })
   }
 
   def sentenceOf[_: P] = P(
-    // something is something to something to something
-    &(identifier ~ space ~ "of") ~
-    identifier ~ space ~ "of" ~ space ~ identifier ~ space ~ "is" ~ space ~ sentenceImpl ~ End
+    // word count of str is the length of words of str
+    &(P(identifier ~ space).rep(1) ~ "of") ~
+      P(P(identifier ~ space).rep(1) ~ "of" ~ space ~ P(identifier ~ space).rep(1) ~ P(&("is") ~ "is" ~ space ~ sentenceImpl).rep(0) ~ End)
   )
 
   def sentence[_: P] = P(
     // something is something to something to something
-    sentenceIs | sentenceOf
+    sentenceIs | sentenceTo | sentenceOf
   ).map((f) => Identifier("") )
 
   // average of str is cast total length / cast num words

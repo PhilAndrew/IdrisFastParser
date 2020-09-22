@@ -7,7 +7,7 @@ object ParaLexical {
   // "average is string to double"
 
   val keywords = Set(
-    "data"
+    "data", "is", "as", "of" // of
   )
 
   val symbols = Set(
@@ -15,12 +15,12 @@ object ParaLexical {
     "@{",
     "[|", "|]",
     "(", ")", "{", "}", "[", "]", ",", ";", "_",
-    "`(", "`"
+    "`(", "`", "\""
   )
 
   val reservedSymbols = symbols.union(
     Set("%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "!",
-      "&", "**", ".."))
+      "&", "**", "..", "/"))
 
   def identifier[_: P]: P[ParaGrammar.Identifier] =
     P((letter | "_") ~ (letter | digit | "_").rep).!.filter(!(keywords.union(constants)).contains(_)).map(ParaGrammar.Identifier)
