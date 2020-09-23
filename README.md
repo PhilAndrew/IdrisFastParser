@@ -28,20 +28,22 @@ Typescript allows code to deploy to multiple environments whether it is within N
 
 The following in Ribbon .rbb file.
 
-    average is string to double
-    average of str is cast total length / cast num words
-    total length is sum of all lengths of words of str
-    num words is word count of str
+```perl
+average is string to double
+average of str is cast total length / cast num words
+total length is sum of all lengths of words of str
+num words is word count of str
 
-    word count is string to nat
-    word count of str is the length of words of str
+word count is string to nat
+word count of str is the length of words of str
 
-    all lengths is list string to list nat
-    all lengths of strs is map lengths strs
+all lengths is list string to list nat
+all lengths of strs is map lengths strs
 
-    show average is string to string
-    display is "The average word length is:"
-    show average of str is display ++ show the average of str ++ "\n"
+show average is string to string
+display is "The average word length is:"
+show average of str is display ++ show the average of str ++ "\n"
+```
 
 Translates to the equivalent Idris, which would then subsequently be translated to Typescript (Typescript not given here).
     
@@ -64,34 +66,44 @@ Translates to the equivalent Idris, which would then subsequently be translated 
 
 ### Data schema
 
-    # Relationships are sentences with cardinality on words
-    1..1 manager supervises 0..n staff
-    0..n staff is managed by 1..1 manager
-    the staff are manager and employee
+```perl
+# Relationships are sentences with cardinality on words
+1..1 manager supervises 0..n staff
+0..n staff is managed by 1..1 manager
+the staff are manager and employee
+```
 
-    # Data is like a function but without a return type
-    name is string # Name is defined as a data type with type of string
-    age is number # Age is a data type with type of number
-    gender is male or female # Union type (enum)
-    staff is name age gender # Product type
+```perl
+# Data is like a function but without a return type
+name is string # Name is defined as a data type with type of string
+age is number # Age is a data type with type of number
+gender is male or female # Union type (enum)
+staff is name age gender # Product type
+```
 
 ### Data instance creation
 
-    philip is name 'Philip' age 45 gender male
-    fred is name 'Fred' age 40 gender male
-    fred supervises philip
+```perl
+philip is name 'Philip' age 45 gender male
+fred is name 'Fred' age 40 gender male
+fred supervises philip
+```
 
 ### Querying data
 
-    # Here manager will take the value of fred from the previous Data instance creation
-    manager? supervises philip
+```perl
+# Here manager will take the value of fred from the previous Data instance creation
+manager? supervises philip
+```
 
 ### Function with multiple parameters combined into one parameter
 
-    name is string
-    update is name manager
-    update manager name is update to manager
-    update manager name is ???
+```perl
+name is string
+update is name manager
+update manager name is update to manager
+update manager name is ???
+```
 
 ## Build
 
