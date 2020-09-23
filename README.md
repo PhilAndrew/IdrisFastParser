@@ -86,7 +86,7 @@ Translates to the equivalent Idris, which would then subsequently be translated 
     # Here manager will take the value of fred from the previous Data instance creation
     manager? supervises philip
 
-### Function with multiple paramters combined into one parameter
+### Function with multiple parameters combined into one parameter
 
     name is string
     update is name manager
@@ -98,10 +98,7 @@ Translates to the equivalent Idris, which would then subsequently be translated 
 This example program uses seed to build.
 https://github.com/tindzk/seed
 
-It is not necessary to use seed, sbt or any other build tool could be used.
-
-If you choose to continue to use seed then you need to run the boop server in another terminal then do the following.
-
+Run bloop server then.
 
 `seed bloop`
 
