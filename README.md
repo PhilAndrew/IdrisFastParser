@@ -60,6 +60,33 @@ Translates to the equivalent Idris, which would then subsequently be translated 
     showAverage str = "The average word length is: " ++
     show (average str) ++ "\n"
 
+## Representing data
+
+### Data schema
+
+    # Relationships are sentences with cardinality on words
+    1..1 manager supervises 0..n staff
+    0..n staff is managed by 1..1 manager
+    the staff are manager and employee
+    # Data is like a function but without a return type
+    name is string
+    age is number
+    gender is enum male or female
+    staff is name age gender
+
+### Data instance creation
+
+    philip is name 'Philip' age 45 gender male
+    fred is name 'Fred' age 40 gender male
+    fred supervises philip
+
+### Querying data
+
+    manager? supervises philip
+    name is string
+    update is name manager
+    update manager name is update to manager
+    update manager name is ???
 
 ## Build
 
