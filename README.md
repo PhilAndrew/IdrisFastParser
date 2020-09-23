@@ -67,14 +67,14 @@ Translates to the equivalent Idris, which would then subsequently be translated 
 ### Data schema
 
 ```javascript
-# Relationships are sentences with cardinality on words
+// Relationships are sentences with cardinality on words
 1..1 manager supervises 0..n staff
 0..n staff is managed by 1..1 manager
 the staff are manager and employee
 ```
 
 ```javascript
-# Data is like a function but without a return type
+// Data is like a function but without a return type
 name is string // Name is defined as a data type with type of string
 age is number // Age is a data type with type of number
 gender is male or female // Union type (enum)
