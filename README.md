@@ -28,7 +28,7 @@ Typescript allows code to deploy to multiple environments whether it is within N
 
 The following in Ribbon .rbb file.
 
-```javascript
+```
 average is string to double
 average of str is cast total length / cast num words
 total length is sum of all lengths of words of str
