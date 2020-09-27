@@ -102,7 +102,7 @@ manager? supervises philip
 ```javascript
 name is string
 update manager name is string to manager
-update manager name of name is assign name to manager.name for manager
+update manager name of name is name to manager.name for manager
 ```
 
 ### Function with multiple parameters combined into one parameter to allow for update
@@ -111,7 +111,7 @@ update manager name of name is assign name to manager.name for manager
 name is string
 update is name manager // update is a data type combining name and manager
 update manager name is update to manager // function goes from data type update to data type manager
-update manager name of update is assign update.name on update.manager.name to update.manager
+update manager name of update is update.name to update.manager.name for update.manager
 ```
 
 ## Build
