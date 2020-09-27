@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The experimental Ribbon Computer Language at [ribbon-lang.org](https://ribbon-lang.org/), this project is very early in development.
+The experimental Ribbon Computer Language at [ribbon-lang.org](https://ribbon-lang.org/), this project is very early in development and the syntax is in flux.
 
 This translates from Ribbon .rbb files to Idris and then translates to Typescript.
 
@@ -13,6 +13,7 @@ Some features of Ribbon are:
 * Sentence lines can be grouped into paragraphs, a paragraph defines a common scope for variable names. Functions can be referenced from within and outside of the paragraph scope
 * Functions can only take one parameter and return one result, if you want a function with multiple parameters then create a data type which encapsulates the parameters
 * Use of [Lojban](https://en.wikipedia.org/wiki/Lojban) words are encouraged for the definition of functions
+* Resultant code should be human readable but still functional programming style
 
 ## Why?
 
@@ -96,13 +97,21 @@ fred supervises philip
 manager? supervises philip
 ```
 
-### Function with multiple parameters combined into one parameter
+### Update manager name
 
 ```javascript
 name is string
-update is name manager
-update manager name is update to manager
-update manager name is ???
+update manager name is string to manager
+update manager name of name is assign name to manager.name for manager
+```
+
+### Function with multiple parameters combined into one parameter to allow for update
+
+```javascript
+name is string
+update is name manager // update is a data type combining name and manager
+update manager name is update to manager // function goes from data type update to data type manager
+update manager name of update is assign update.name to update.manager.name for update.manager
 ```
 
 ## Build
@@ -121,5 +130,27 @@ Run bloop server then.
 Generate IntelliJ Idea project.
 
 `seed idea`
+
+
+```
+Notes
+
+record Person where
+    constructor MkPerson
+    firstName, middleName, lastName : String
+    age : Int
+
+fred : Person
+fred = MkPerson "Fred" "Joe" "Bloggs" 30
+
+*Record> firstName fred
+"Fred" : String
+*Record> age fred
+30 : Int
+
+record { firstName = "Jim" } fred
+
+record { firstName = "Jim", age $= (+ 1) } fred
+```
 
 
