@@ -96,15 +96,6 @@ fred supervises philip
 // Here manager will take the value of fred from the previous Data instance creation
 manager? supervises philip
 ```
-
-### Update manager name
-
-```javascript
-name is string
-update manager name is string to manager
-update manager name of name is name to manager.name for manager
-```
-
 ### Function with multiple parameters combined into one parameter to allow for update
 
 ```javascript

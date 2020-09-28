@@ -20,15 +20,33 @@ object ParagraphLanguage extends App {
         |
         |""".stripMargin
 
+    /*
+average is string to double
+average of str is cast total length / cast num words
+total length is sum of all lengths of words of str
+num words is word count of str
+
+word count is string to nat
+word count of str is the length of words of str
+
+all lengths is list string to list nat
+all lengths of strs is map lengths strs
+
+show average is string to string
+display is "The average word length is:"
+show average of str is display ++ show the average of str ++ "\n"
+     */
     val sentence = """average is string to double
                     |average of str is cast total length / cast num words
-                    |total length is sum of all lengths of words str
+                    |total length is sum of all lengths of words of str
                     |num words is word count of str
                     |word count is string to nat
                     |word count of str is the length of words of str
+                    |all lengths is list string to list nat
                     |all lengths of strs is map lengths strs
                     |show average is string to string
-                    |show average of str is 'The average word length is:'""".stripMargin
+                    |display is "The average word length is:"
+                    |# show average of str is display ++ show the average of str ++ "\n"""".stripMargin
 
     val idris = sentenceToIdris(sentence)
 
