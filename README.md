@@ -4,7 +4,7 @@
 
 The experimental Ribbon Computer Language at [ribbon-lang.org](https://ribbon-lang.org/), this project is very early in development and the syntax is in flux.
 
-This translates from Ribbon .rbb files to Idris and then translates to Typescript.
+This translates from Ribbon .rbb files to Idris and then translates to Typescript. Idris is an amazing language, this is really just a more simplified Idris with some other ideas added.
 
 Some features of Ribbon are:
 * Keyboard typing is from left to right without interruptions, as in English language and you should be able to program this language by speaking verbally although this is not a main language goal
@@ -102,7 +102,7 @@ manager? supervises philip
 ```javascript
 name is string
 update manager name is string to manager
-update manager name of name is name to manager.name as manager
+update manager name of name is name to manager.name for manager
 ```
 
 ### Function with multiple parameters combined into one parameter to allow for update
@@ -111,7 +111,7 @@ update manager name of name is name to manager.name as manager
 name is string
 update is name manager // update is a data type combining name and manager
 update manager name is update to manager // function goes from data type update to data type manager
-update manager name of update is update.name to update.manager.name as update.manager
+update manager name of update is update.name to update.manager.name for update.manager
 ```
 
 ## Build
