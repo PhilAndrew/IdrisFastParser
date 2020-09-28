@@ -69,7 +69,11 @@ is, of, to, for
 
 is for function definition means that the parameter types follow as input type to output type
 
-an example is "average is string to double"
+an example is "average is string to double" which is the same as the following in typescript.
+
+```typescript
+function average(str: string): number { }
+```
 
 ## Representing data
 
