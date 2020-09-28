@@ -63,6 +63,14 @@ Translates to the equivalent Idris, which would then subsequently be translated 
     showAverage str = "The average word length is: " ++
     show (average str) ++ "\n"
 
+### Reserved words
+
+is, of, to, for
+
+is for function definition means that the parameter types follow as input type to output type
+
+an example is "average is string to double"
+
 ## Representing data
 
 ### Data schema
