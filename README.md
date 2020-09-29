@@ -105,7 +105,7 @@ function allLengths(s: string[]): number[] {
  }
 ```
 
-The second use case of ```to``` is for assignment of data and must precede ```for```.
+The second use case of ```to``` will appear after the keyword ```is```, it is for assignment of data and must precede ```for```.
 
 ```update manager name of update is update.name to update.manager.name for update.manager```
 
