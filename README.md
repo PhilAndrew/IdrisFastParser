@@ -105,7 +105,7 @@ function allLengths(s: string[]): number[] {
  }
 ```
 
-The second use case of ```to``` will appear after the keyword ```is```, it is for assignment of data and must precede ```for```.
+The second use case of ```to``` will appear after the keyword ```is```, it is for assignment of data and must precede ```for```. The ```for``` keyword indicates which value to return.
 
 ```update manager name of update is update.name to update.manager.name for update.manager```
 
@@ -127,11 +127,9 @@ function update(update: Update): Manager {
 }
 ```
 
-@todo Also to is used in another case not yet defined
-
 #### for reserved word
 
-for indiciates the variable to return.
+The for keyword usage is defined in the previous ```to``` section.
 
 ## Representing data
 
