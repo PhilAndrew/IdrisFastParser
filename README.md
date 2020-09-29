@@ -105,7 +105,7 @@ function allLengths(s: string[]): number[] {
  }
 ```
 
-For the second use case ```to``` is used for assignment of data and must be precede ```for```.
+For the second use case ```to```, this is used for assignment of data and must precede ```for```.
 
 ```update manager name of update is update.name to update.manager.name for update.manager```
 
