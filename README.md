@@ -69,9 +69,9 @@ is, of, to, for
 
 #### is reserved word
 
-is for function definition means that the parameter types follow as input type to output type
+```is```, within the context of a function definition means that the parameter types follow as input type to output type
 
-An example is "average is string to double" which is the same as the following in typescript.
+An example is ```average is string to double``` which is the same as the following in typescript.
 
 ```typescript
 function average(str: string): number { 
@@ -81,9 +81,9 @@ function average(str: string): number {
 
 #### of reserved word
 
-of is used in the function implementation to indiciate this is a function implementation and describe the parameter name on the right hand side.
+```of``` is used within the function implementation to indiciate that this is a function implementation and describe the parameter name on the right hand side.
 
-An example is "average of str is cast total length / cast num words", the following typescript is equivalent.
+An example is ```average of str is cast total length / cast num words```, the following typescript is equivalent.
 
 ```typescript
 function average(str: string): number {
@@ -93,14 +93,37 @@ function average(str: string): number {
 
 #### to reserved word
 
-to is used in the function definition to indiciate the function takes an input parameter and returns another output.
+```to``` has two use cases, each within a different context.
 
-An example is "all lengths is list string to list nat".
+For the first use case ```to``` is used within the function definition to indiciate the function takes an input parameter and returns another output.
+
+An example is ```all lengths is list string to list nat``` which would result in typescript as such.
 
 ```typescript
-function allLengths(strings: Array<string>): Array<nat> {
+function allLengths(s: string[]): number[] {
     // Implementation not yet define
  }
+```
+
+For the second use case ```to``` is used for assignment of data and must be preceeded with ```for```.
+
+```update manager name of update is update.name to update.manager.name for update.manager```
+
+The equivalent typescript.
+
+```typescript
+interface Manager {
+  name: string;
+}
+interface Update {
+  name: string;
+  manager: Manager;
+}
+
+function update(update: Update): Manager {
+    update.manager.name = update.name;
+    return update.manager;
+}
 ```
 
 @todo Also to is used in another case not yet defined
