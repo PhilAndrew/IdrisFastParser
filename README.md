@@ -105,7 +105,7 @@ function allLengths(s: string[]): number[] {
  }
 ```
 
-For the second use case ```to``` is used for assignment of data and must be preceeded with ```for```.
+For the second use case ```to``` is used for assignment of data and must be precede ```for```.
 
 ```update manager name of update is update.name to update.manager.name for update.manager```
 
@@ -115,6 +115,7 @@ The equivalent typescript.
 interface Manager {
   name: string;
 }
+
 interface Update {
   name: string;
   manager: Manager;
