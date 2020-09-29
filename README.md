@@ -67,7 +67,7 @@ Translates to the equivalent Idris, which would then subsequently be translated 
 
 is, of, to, for
 
-#### is
+#### is reserved word
 
 is for function definition means that the parameter types follow as input type to output type
 
@@ -79,7 +79,7 @@ function average(str: string): number {
 }
 ```
 
-#### of
+#### of reserved word
 
 of is used in the function implementation to indiciate this is a function implementation and describe the parameter name on the right hand side.
 
@@ -91,7 +91,7 @@ function average(str: string): number {
  }
 ```
 
-#### to
+#### to reserved word
 
 to is used in the function definition to indiciate the function takes an input parameter and returns another output.
 
@@ -105,9 +105,9 @@ function allLengths(strings: Array<string>): Array<nat> {
 
 @todo Also to is used in another case not yet defined
 
-#### for
+#### for reserved word
 
-Define for.
+for indiciates the variable to return.
 
 ## Representing data
 
