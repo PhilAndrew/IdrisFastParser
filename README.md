@@ -67,13 +67,47 @@ Translates to the equivalent Idris, which would then subsequently be translated 
 
 is, of, to, for
 
+#### is
+
 is for function definition means that the parameter types follow as input type to output type
 
-an example is "average is string to double" which is the same as the following in typescript.
+An example is "average is string to double" which is the same as the following in typescript.
 
 ```typescript
-function average(str: string): number { }
+function average(str: string): number { 
+  // Implementation not yet defined
+}
 ```
+
+#### of
+
+of is used in the function implementation to indiciate this is a function implementation and describe the parameter name on the right hand side.
+
+An example is "average of str is cast total length / cast num words", the following typescript is equivalent.
+
+```typescript
+function average(str: string): number {
+    return totalLength(str) / numWords(str);
+ }
+```
+
+#### to
+
+to is used in the function definition to indiciate the function takes an input parameter and returns another output.
+
+An example is "all lengths is list string to list nat".
+
+```typescript
+function allLengths(strings: Array<string>): Array<nat> {
+    // Implementation not yet define
+ }
+```
+
+@todo Also to is used in another case not yet defined
+
+#### for
+
+Define for.
 
 ## Representing data
 
