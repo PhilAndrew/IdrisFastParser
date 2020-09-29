@@ -133,6 +133,11 @@ The for keyword usage is defined in the previous ```to``` section.
 
 ## Representing data
 
+Representation of data as relationships between entities is supported within the language and querying those relationships is also supported. Most other computer
+  languages provide data representation and query through a database API or library, in this case it is built into the language.
+
+The intent here is to provide an in-language feature for data representation and query which can then be attached to different database backends in a transparent way for the programmer. The programmer should not need to know if they are using a GraphQL or Graph database or MySql or in memory.
+
 ### Data schema
 
 ```javascript
