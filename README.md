@@ -81,15 +81,7 @@ function average(str: string): number {
 
 #### of reserved word
 
-```of``` is used within the function implementation to indiciate that this is a function implementation and describe the parameter name on the right hand side.
-
-An example is ```average of str is cast total length / cast num words```, the following typescript is equivalent.
-
-```typescript
-function average(str: string): number {
-    return totalLength(str) / numWords(str);
- }
-```
+@todo
 
 #### to reserved word
 
@@ -107,7 +99,7 @@ function allLengths(s: string[]): number[] {
 
 The second use case of ```to``` will appear after the keyword ```is```, it is for assignment of data and must precede ```for```. The ```for``` keyword indicates which value to return.
 
-```update manager name of update is update.name to update.manager.name for update.manager```
+```update manager name is name to manager name for manager```
 
 The equivalent typescript.
 
