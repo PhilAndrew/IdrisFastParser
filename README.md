@@ -31,19 +31,19 @@ The following in Ribbon .rbb file.
 
 ```
 average is string to double
-average of str is cast total length / cast num words
-total length is sum of all lengths of words of str
-num words is word count of str
+cast total length / cast num words
+total length is sum of all lengths of words of
+num words is word count of
 
 word count is string to nat
-word count of str is the length of words of str
+the length of words of
 
 all lengths is list string to list nat
-all lengths of strs is map lengths strs
+map lengths of
 
 show average is string to string
 display is "The average word length is:"
-show average of str is display ++ show the average of str ++ "\n"
+display ++ show the average of ++ "\n"
 ```
 
 Translates to the equivalent Idris, which would then subsequently be translated to Typescript (Typescript not given here).
