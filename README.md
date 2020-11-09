@@ -1,5 +1,7 @@
 # Ribbon Language
 
+<img src="./ribbon.png">
+
 ## Introduction
 
 The experimental Ribbon Computer Language at [ribbon-lang.org](https://ribbon-lang.org/), this project is very early in development and the syntax is in flux.
