@@ -1,6 +1,6 @@
 # Ribbon Language
 
-<img src="./ribbon.png" style="width:113px">
+<img src="./ribbon.png" style="width:140px">
 
 ## Introduction
 
