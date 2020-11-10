@@ -2,7 +2,7 @@
 
 <img src="./ribbon.png" style="width:140px">
 
-## Introduction
+## Welcome to Ribbon
 
 The experimental Ribbon Computer Language at [ribbon-lang.org](https://ribbon-lang.org/), this project is very early in development and the syntax is in flux.
 
@@ -210,5 +210,4 @@ record { firstName = "Jim" } fred
 
 record { firstName = "Jim", age $= (+ 1) } fred
 ```
-
 
